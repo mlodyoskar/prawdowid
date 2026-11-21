@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@prawdowid/contracts": "workspace:*",
-    "@prawdowid/sources": "workspace:*"
+    "@prawdowid/sources": "workspace:*",
+    "ai": "^7.0.179",
+    "zod": "^4.6.7"
   }
 }

@@ -1,2 +1,115 @@
-// Szkielet projektu. `export {}` oznacza plik jako moduł ES.
-export {};
+import { z } from 'zod';
+
+/** Werdykt dla pojedynczego twierdzenia. Awaria, brak klucza itp. NIE są werdyktami (patrz CheckResponse.status). */
+export const Verdict = z.enum([
+  'potwierdzone',
+  'fałszywe',
+  'wprowadzające w błąd',
+  'brak wystarczających dowodów',
+  'nie podlega weryfikacji',
+]);
+export type Verdict = z.infer<typeof Verdict>;
+
+/** Werdykty rozstrzygające: wymagają co najmniej jednego dowodu. */
+export const DECISIVE_VERDICTS: readonly Verdict[] = [
+  'potwierdzone',
+  'fałszywe',
+  'wprowadzające w błąd',
+];
+
+export const Confidence = z.enum(['niska', 'średnia', 'wysoka']);
+export type Confidence = z.infer<typeof Confidence>;
+
+export const MAX_TEXT_LENGTH = 4000;
+/** ~5 MB obrazu po zakodowaniu base64 (base64 to ~4/3 rozmiaru). */
+export const MAX_IMAGE_BASE64_LENGTH = 7_000_000;
+
+export const ImageInput = z.object({
+  mediaType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  /** Surowy base64, bez prefiksu `data:`. */
+  data: z
+    .string()
+    .min(1)
+    .max(MAX_IMAGE_BASE64_LENGTH)
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/, 'Nieprawidłowy base64'),
+});
+export type ImageInput = z.infer<typeof ImageInput>;
+
+export const CheckRequest = z
+  .object({
+    text: z.string().trim().min(1).max(MAX_TEXT_LENGTH).optional(),
+    image: ImageInput.optional(),
+  })
+  .refine((v) => v.text !== undefined || v.image !== undefined, {
+    message: 'Podaj tekst lub zdjęcie.',
+  });
+export type CheckRequest = z.infer<typeof CheckRequest>;
+
+export const EvidenceKind = z.enum(['factcheck', 'corpus']);
+export type EvidenceKind = z.infer<typeof EvidenceKind>;
+
+export const SourceType = z.enum(['primary', 'secondary']);
+export type SourceType = z.infer<typeof SourceType>;
+
+export const Evidence = z.object({
+  id: z.string(),
+  kind: EvidenceKind,
+  title: z.string(),
+  publisher: z.string(),
+  url: z.string(),
+  publishedAt: z.string().nullable(),
+  fetchedAt: z.string().nullable(),
+  excerpt: z.string(),
+  /** Ocena fact-checkera (textualRating), tylko dla kind = factcheck. */
+  rating: z.string().optional(),
+  sourceType: SourceType.optional(),
+  /** Dokument z danych mockowych: nie jest prawdziwym źródłem. */
+  isMock: z.boolean().optional(),
+});
+export type Evidence = z.infer<typeof Evidence>;
+
+export const ClaimResult = z.object({
+  claim: z.string(),
+  verdict: Verdict,
+  confidence: Confidence,
+  explanation: z.string(),
+  evidenceIds: z.array(z.string()),
+  limitations: z.string(),
+});
+export type ClaimResult = z.infer<typeof ClaimResult>;
+
+export const ErrorCode = z.enum(['llm_unavailable', 'missing_config', 'timeout', 'internal']);
+export type ErrorCode = z.infer<typeof ErrorCode>;
+
+const ResponseMeta = z.object({
+  checkId: z.string(),
+  createdAt: z.string(),
+  durationMs: z.number(),
+});
+
+export const CheckResponse = z.discriminatedUnion('status', [
+  ResponseMeta.extend({
+    status: z.literal('ok'),
+    summary: z.string(),
+    claims: z.array(ClaimResult),
+    evidence: z.array(Evidence),
+    warnings: z.array(z.string()),
+  }),
+  ResponseMeta.extend({ status: z.literal('needs_clarification'), message: z.string() }),
+  ResponseMeta.extend({ status: z.literal('out_of_scope'), message: z.string() }),
+  ResponseMeta.extend({ status: z.literal('error'), code: ErrorCode, message: z.string() }),
+]);
+export type CheckResponse = z.infer<typeof CheckResponse>;
+
+/** Stan zadania asynchronicznego. `state` opisuje zadanie, a `result.status` wynik. */
+export const JobState = z.enum(['queued', 'running', 'done']);
+export type JobState = z.infer<typeof JobState>;
+
+export const CheckJob = z.object({
+  checkId: z.string(),
+  state: JobState,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  result: CheckResponse.optional(),
+});
+export type CheckJob = z.infer<typeof CheckJob>;

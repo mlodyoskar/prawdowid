@@ -4,12 +4,19 @@
   "description": "HTTP API: walidacja, zapis przebiegu sprawdzenia, limity; woła verify()",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.ts",
-    "start": "node src/index.ts",
+    "dev": "node --env-file-if-exists=../../.env --watch src/index.ts",
+    "start": "node --env-file-if-exists=../../.env src/index.ts",
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.94",
+    "@hono/node-server": "^2.1.11",
+    "@hono/zod-validator": "^0.9.1",
     "@prawdowid/agent": "workspace:*",
-    "@prawdowid/contracts": "workspace:*"
+    "@prawdowid/contracts": "workspace:*",
+    "@prawdowid/sources": "workspace:*",
+    "ai": "^7.0.179",
+    "hono": "^4.13.19",
+    "zod": "^4.6.7"
   }
 }

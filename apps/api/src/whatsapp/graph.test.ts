@@ -30,6 +30,25 @@ test('sendText: POST na /{phone-number-id}/messages z tokenem', async () => {
   });
 });
 
+test('markReadTyping: „przeczytano” ze wskaźnikiem pisania dla danej wiadomości', async () => {
+  let body: unknown;
+  const graph = new GraphClient({
+    ...cfg,
+    fetch: async (_url, init) => {
+      assert.ok(typeof init?.body === 'string');
+      body = JSON.parse(init.body);
+      return Response.json({ success: true });
+    },
+  });
+  assert.deepEqual(await graph.markReadTyping('wamid.1'), { ok: true, value: undefined });
+  assert.deepEqual(body, {
+    messaging_product: 'whatsapp',
+    status: 'read',
+    message_id: 'wamid.1',
+    typing_indicator: { type: 'text' },
+  });
+});
+
 test('awaria Graph API (HTTP i sieć) wraca jako wynik, bez wyjątku', async () => {
   const http = new GraphClient({
     ...cfg,

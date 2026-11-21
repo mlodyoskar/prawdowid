@@ -18,7 +18,7 @@ type Level = 'info' | 'warn' | 'error';
 export type ChannelLog = (event: string, data?: Record<string, unknown>, level?: Level) => void;
 
 export type WhatsAppChannelDeps = {
-  graph: Pick<GraphClient, 'sendText' | 'downloadImage'>;
+  graph: Pick<GraphClient, 'sendText' | 'downloadImage' | 'markReadTyping'>;
   runner: { enqueue(input: CheckRequest): CheckJob | null; delete(id: string): boolean };
   appSecret: string;
   verifyToken: string;
@@ -28,6 +28,11 @@ export type WhatsAppChannelDeps = {
   ratePerMinute: number;
   log: ChannelLog;
   now?: () => number;
+  /**
+   * Co ile ponawiać „pisze…” w trakcie sprawdzenia (Meta gasi wskaźnik po 25 s).
+   * 0 wyłącza ponawianie.
+   */
+  typingRefreshMs?: number;
 };
 
 /** Teksty dla użytkownika. Żaden nie jest werdyktem. */
@@ -37,7 +42,6 @@ export const MESSAGES = {
     'Wyślij tekst, link albo zrzut ekranu. Odpowiem werdyktem ze źródłami, zwykle w ciągu 30 sekund.\n\n' +
     'Napisz USUŃ, aby usunąć swoje sprawdzenia.\n\n' +
     'Wynik wspiera Twoją ocenę, ale jej nie zastępuje. Zawsze pokazujemy źródło.',
-  ack: 'Sprawdzam… Odpowiem zwykle w ciągu 30 sekund.',
   unsupported:
     'Obsługuję tekst, link i zdjęcie (zrzut ekranu). Ten rodzaj wiadomości nie zostanie sprawdzony.',
   tooLong: `Wiadomość jest za długa (limit ${MAX_TEXT_LENGTH} znaków). Wyślij najważniejszy fragment.`,
@@ -96,7 +100,16 @@ export function verifySignature(
   return given.length === expected.length && timingSafeEqual(given, expected);
 }
 
+type Pending = {
+  to: string;
+  ack: Promise<unknown>;
+  typing?: ReturnType<typeof setInterval> | undefined;
+};
+
 const MAX_SEEN_IDS = 2000;
+const TYPING_REFRESH_MS = 20_000;
+/** Ponawiamy „pisze…” najwyżej tyle razy (~3 min), gdyby sprawdzenie się zawiesiło. */
+const MAX_TYPING_REFRESHES = 9;
 const MAX_CHECKS_PER_SENDER = 50;
 
 /**
@@ -110,8 +123,11 @@ export class WhatsAppChannel {
   readonly #deps: WhatsAppChannelDeps;
   readonly #limiter: FixedWindowLimiter;
   readonly #seen = new Set<string>();
-  /** checkId → nadawca i obietnica wysłania potwierdzenia (odpowiedź idzie dopiero po nim). */
-  readonly #pending = new Map<string, { to: string; ack: Promise<unknown> }>();
+  /**
+   * checkId → nadawca, obietnica oznaczenia „przeczytano, pisze…” (odpowiedź idzie dopiero
+   * po niej, żeby wskaźnik nie pojawił się po odpowiedzi) i timer ponawiania wskaźnika.
+   */
+  readonly #pending = new Map<string, Pending>();
   readonly #bySender = new Map<string, string[]>();
   readonly #inflight = new Set<Promise<unknown>>();
 
@@ -240,10 +256,25 @@ export class WhatsAppChannel {
     const checks = this.#bySender.get(msg.from) ?? [];
     checks.push(job.checkId);
     this.#bySender.set(msg.from, checks.slice(-MAX_CHECKS_PER_SENDER));
-    const ack = this.#send(msg.from, MESSAGES.ack);
-    this.#pending.set(job.checkId, { to: msg.from, ack });
+    // Zamiast wiadomości „Sprawdzam…”: „przeczytano” i „pisze…”. To nie jest wiadomość,
+    // więc nie zużywa płatnej puli wiadomości serwisowych.
+    const ack = this.#markReadTyping(msg.id, sender);
+    const entry: Pending = { to: msg.from, ack };
+    this.#pending.set(job.checkId, entry);
     this.#deps.log('whatsapp_check_enqueued', { sender, checkId: job.checkId });
-    await ack;
+    const refreshMs = this.#deps.typingRefreshMs ?? TYPING_REFRESH_MS;
+    if ((await ack) && refreshMs > 0 && this.#pending.get(job.checkId) === entry) {
+      let left = MAX_TYPING_REFRESHES;
+      entry.typing = setInterval(() => {
+        if (--left < 0) return this.#stopTyping(entry);
+        this.#track(
+          this.#markReadTyping(msg.id, sender).then((ok) => {
+            if (!ok) this.#stopTyping(entry);
+          }),
+        );
+      }, refreshMs);
+      entry.typing.unref?.();
+    }
   }
 
   /** Woła to `JobRunner.onDone`: odsyła wynik, jeśli sprawdzenie przyszło z WhatsAppa. */
@@ -251,6 +282,7 @@ export class WhatsAppChannel {
     const pending = this.#pending.get(checkId);
     if (!pending) return;
     this.#pending.delete(checkId);
+    this.#stopTyping(pending);
     this.#track(
       (async () => {
         await pending.ack;
@@ -270,12 +302,25 @@ export class WhatsAppChannel {
     const ids = this.#bySender.get(from) ?? [];
     let deleted = 0;
     for (const id of ids) {
+      const pending = this.#pending.get(id);
+      if (pending) this.#stopTyping(pending);
       this.#pending.delete(id);
       if (this.#deps.runner.delete(id)) deleted++;
     }
     this.#bySender.delete(from);
     this.#deps.log('whatsapp_checks_deleted', { sender: hashClientKey(from), count: deleted });
     await this.#send(from, MESSAGES.deleted(deleted));
+  }
+
+  async #markReadTyping(messageId: string, sender: string): Promise<boolean> {
+    const res = await this.#deps.graph.markReadTyping(messageId);
+    if (!res.ok) this.#deps.log('whatsapp_typing_failed', { sender, error: res.error }, 'warn');
+    return res.ok;
+  }
+
+  #stopTyping(entry: Pending): void {
+    if (entry.typing !== undefined) clearInterval(entry.typing);
+    entry.typing = undefined;
   }
 
   async #send(to: string, body: string): Promise<boolean> {

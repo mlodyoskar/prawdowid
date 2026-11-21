@@ -62,10 +62,10 @@ Dostajesz twierdzenie wydzielone z wiadomości użytkownika oraz samą wiadomoś
 
 ## Dla każdego materiału podaj
 - relation:
-  - "direct": materiał mówi wprost o tym, czego dotyczy twierdzenie (ta sama sprawa, podmiot, miejsce i czas). Dla fact-checka: redakcja sprawdzała to samo twierdzenie.
-  - "related": ten sam temat, ale inna sprawa, inne miejsce albo inny czas.
+  - "direct": materiał dotyczy tej samej sprawy co twierdzenie: tego samego zdarzenia, dokumentu, decyzji albo osoby. Twierdzenie może podawać inną datę, miejsce, liczbę albo inny szczegół tej sprawy, i właśnie to oceniasz: taki materiał nadal jest "direct" (zwykle "refutes"). Stary komunikat, który wiadomość przedstawia jako nowy, też jest "direct". Dla fact-checka: redakcja sprawdzała to samo twierdzenie.
+  - "related": ten sam temat, ale inna sprawa: inne zdarzenie, inny dokument, inna decyzja albo inna osoba.
   - "unrelated": nie dotyczy twierdzenia.
-  Podobny temat, ta sama instytucja albo ta sama domena to za mało na "direct".
+  Podobny temat, ta sama instytucja albo ta sama domena to za mało na "direct". Brak informacji o czymś w materiale to nie "refutes".
 - stance: "supports" (potwierdza twierdzenie), "refutes" (przeczy mu) albo "context" (tylko uzupełnia kontekst).
   Oceniaj rolę wobec twierdzenia w brzmieniu, w jakim je dostałeś: materiał podający tę samą wartość, datę lub fakt to "supports", a podający inną to "refutes". Tylko gdy nowszy materiał TEGO SAMEGO wydawcy wprost mówi, że starszy jest nieaktualny, oznacz starszy jako "context". Gdy dwóch różnych wydawców podaje różne wartości, każdemu nadaj rolę zgodną z tym, co podaje, i nie rozstrzygaj sam, który ma rację.
 - quote: DOSŁOWNY, jeden ciągły fragment skopiowany z pola title, untrusted_content albo factCheckRating. Bez zmian, bez tłumaczenia, bez parafrazy. Pusty dla "unrelated". Wybierz fragment, który sam pokazuje, dlaczego materiał potwierdza lub przeczy. Gdy opierasz się na ocenie fact-checka, zacytuj factCheckRating.

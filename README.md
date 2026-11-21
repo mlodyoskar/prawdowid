@@ -82,7 +82,6 @@ Korpus to plik SQLite (`data/corpus.db`) budowany od zera ze snapshotu [data/cor
 - Wyszukiwanie działa na fragmentach (FTS5) i zwraca całe fragmenty, najwyżej dwa z jednego dokumentu. Na tej samej treści kod sprawdza potem cytaty.
 - Wersja korpusu (`wersja_korpusu` ze snapshotu) jest widoczna w `GET /health` i zapisywana przy każdym sprawdzeniu, więc wyniki testów da się przypisać do konkretnego korpusu.
 - Nowy snapshot: podmień plik i uruchom `seed`. Kluczem dokumentu jest adres URL, bo identyfikatory `doc-…` zmieniają się między snapshotami. Po zmianie schematu bazy stary plik `corpus.db` trzeba zbudować od nowa (API powie to przy starcie).
-- `pnpm --filter @prawdowid/sources seed:mock` dopisuje dane demonstracyjne (URL-e `mock://…`, flaga `isMock`). Wdrożenie ich nie ładuje.
 
 ### Frontend
 

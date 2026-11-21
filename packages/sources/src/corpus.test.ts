@@ -19,14 +19,13 @@ function tempDbPath(): string {
 }
 
 const POBOR: CorpusDocument = {
-  url: 'mock://mon.gov.pl/pobor',
+  url: 'https://example.gov.pl/pobor',
   title: 'MON dementuje informacje o przywróceniu poboru',
   publisher: 'MON',
   sourceType: 'primary',
   publishedAt: '2026-11-07',
   fetchedAt: '2026-11-21T00:00:00Z',
   content: 'Ministerstwo nie prowadzi prac nad przywróceniem obowiązkowej służby wojskowej.',
-  isMock: true,
 };
 
 const OBWODNICA: CorpusDocument = {
@@ -57,8 +56,7 @@ test('znajduje dokument mimo odmiany i braku polskich znaków', () => {
   const corpus = seeded(POBOR, OBWODNICA);
   const res = corpus.search('czy wraca pobor do wojska');
   assert.ok(res.ok);
-  assert.equal(res.items[0]?.url, 'mock://mon.gov.pl/pobor');
-  assert.equal(res.items[0]?.isMock, true);
+  assert.equal(res.items[0]?.url, 'https://example.gov.pl/pobor');
   assert.equal(res.items[0]?.kind, 'corpus');
   corpus.close();
 });

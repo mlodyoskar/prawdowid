@@ -113,7 +113,7 @@ Typy są w [packages/contracts](../packages/contracts/src/index.ts). Pola dodane
 
 ## Pierwszy test na żywo (2026-11-21)
 
-13 zapytań (część powtarzana trzykrotnie) na korpusie mockowym i prawdziwym Google Fact Check, przez OpenRouter. To nie jest jeszcze ewaluacja: przypadków jest za mało, a korpus jest testowy.
+13 zapytań (część powtarzana trzykrotnie) na ówczesnym korpusie testowym (sprzed importu prawdziwego snapshotu, dziś usuniętym) i prawdziwym Google Fact Check, przez OpenRouter. To nie jest jeszcze ewaluacja: przypadków było za mało, a korpus był testowy.
 
 | Konfiguracja                                | Mediana czasu | Najdłużej | Tokeny (17 sprawdzeń) |
 | ------------------------------------------- | ------------- | --------- | --------------------- |

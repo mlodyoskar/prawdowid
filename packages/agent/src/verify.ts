@@ -268,9 +268,6 @@ function postProcess(
       );
     }
   }
-  if (evidence.some((e) => e.isMock)) {
-    warnings.push('Część dowodów pochodzi z danych testowych (mock), a nie z prawdziwych źródeł.');
-  }
 
   return {
     ...meta,

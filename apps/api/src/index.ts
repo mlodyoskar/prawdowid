@@ -12,6 +12,7 @@ import { estimateCostUsd } from './cost.ts';
 import { loadEnv } from './env.ts';
 import { JobRunner, SqliteJobStore } from './jobs.ts';
 import { resolveModel } from './model.ts';
+import { isReusable, reuseKey } from './reuse.ts';
 import { GraphClient } from './whatsapp/graph.ts';
 import { WhatsAppChannel } from './whatsapp/webhook.ts';
 
@@ -78,6 +79,15 @@ const price =
     ? { inputPerMTok: env.LLM_PRICE_INPUT_PER_MTOK, outputPerMTok: env.LLM_PRICE_OUTPUT_PER_MTOK }
     : null;
 
+// Wszystko, od czego zależy wynik: zmiana modelu, trybu, temperatury albo korpusu unieważnia gotowe wyniki.
+const reuseSalt = JSON.stringify([
+  env.RESEARCH_MODE,
+  env.LLM_MODEL ?? null,
+  env.LLM_JUDGE_MODEL ?? null,
+  env.LLM_TEMPERATURE ?? null,
+  corpusInfo.version,
+]);
+
 // Kanał WhatsApp korzysta z tego samego runnera; `onDone` niżej odsyła mu wyniki.
 let whatsapp: WhatsAppChannel | undefined;
 
@@ -86,6 +96,15 @@ const runner = new JobRunner({
   concurrency: env.MAX_CONCURRENT_CHECKS,
   maxQueued: env.MAX_QUEUED_CHECKS,
   timeoutMs: env.CHECK_TIMEOUT_MS,
+  ...(env.CHECK_REUSE_HOURS > 0
+    ? {
+        reuse: {
+          key: (input) => reuseKey(input, reuseSalt),
+          ttlMs: env.CHECK_REUSE_HOURS * 3600_000,
+          isReusable,
+        },
+      }
+    : {}),
   run: async (input, options) => {
     if (!model) throw new Error('LLM not configured');
     const result = await runVerification(

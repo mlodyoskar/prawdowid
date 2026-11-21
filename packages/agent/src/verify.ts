@@ -65,6 +65,8 @@ export type VerifyMetrics = {
   costUsd?: number;
   /** Wersja korpusu, na której wykonano sprawdzenie. Uzupełnia ją wywołujący. */
   corpusVersion?: string;
+  /** Wynik skopiowany z wcześniejszego sprawdzenia tego samego zgłoszenia, bez wywołań modelu. */
+  reused?: boolean;
 };
 
 export function emptyMetrics(): VerifyMetrics {

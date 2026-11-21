@@ -249,6 +249,9 @@ export function CheckResult({
         <p className="m-0 text-caption text-ink-muted">
           Nr {checkId} · {formatDateTime(result.createdAt)}
           {result.status === 'ok' ? ` · ${count(result.evidence.length, SOURCE_FORMS)}` : null}.
+          {result.status === 'ok' && result.reusedFrom
+            ? ` To samo zgłoszenie sprawdziliśmy ${formatDateTime(result.reusedFrom.createdAt)}: pokazujemy tamten wynik, żeby odpowiedź była taka sama w każdym kanale.`
+            : null}{' '}
           Przechowujemy go 72 godziny.{' '}
           <button
             type="button"

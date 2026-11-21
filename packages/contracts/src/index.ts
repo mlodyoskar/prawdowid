@@ -145,6 +145,11 @@ export const CheckResponse = z.discriminatedUnion('status', [
     /** Źródła, w których faktycznie szukano. */
     searched: z.array(z.string()).optional(),
     mode: ResearchMode.optional(),
+    /**
+     * To samo zgłoszenie sprawdzono już wcześniej: wynik jest kopią tamtego sprawdzenia
+     * (ten sam werdykt i te same dowody we wszystkich kanałach). `createdAt` to czas tamtego sprawdzenia.
+     */
+    reusedFrom: z.object({ createdAt: z.string() }).optional(),
   }),
   ResponseMeta.extend({ status: z.literal('needs_clarification'), message: z.string() }),
   ResponseMeta.extend({ status: z.literal('out_of_scope'), message: z.string() }),

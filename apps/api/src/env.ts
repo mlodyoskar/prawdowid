@@ -41,8 +41,16 @@ const Env = z.object({
       .regex(/^[\w-]+:.+$/, 'Format: <dostawca>:<model>')
       .optional(),
   ),
-  /** Temperatura w trybie `plan`. Puste = parametr nie jest wysyłany (część modeli go nie przyjmuje). */
-  LLM_TEMPERATURE: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(2).optional()),
+  /**
+   * Temperatura w trybie `plan`. Domyślnie 0: mniejszy rozrzut między powtórzeniami tego samego zgłoszenia.
+   * `none` = parametr nie jest wysyłany (część modeli go nie przyjmuje).
+   */
+  LLM_TEMPERATURE: z
+    .preprocess(
+      emptyToUndefined,
+      z.union([z.literal('none'), z.coerce.number().min(0).max(2)]).default(0),
+    )
+    .transform((v) => (v === 'none' ? undefined : v)),
   /**
    * Cena modelu w USD za milion tokenów (wejście/wyjście), do zapisu kosztu sprawdzenia.
    * Puste = koszt nie jest liczony, zostają same tokeny.
@@ -62,6 +70,12 @@ const Env = z.object({
   /** Wymóg zadania: mediana od wejścia do odpowiedzi ≤ 30 s (tekst/URL). */
   CHECK_TIMEOUT_MS: int(30_000),
   CHECKS_RETENTION_HOURS: int(72),
+  /**
+   * Przez tyle godzin to samo zgłoszenie (po normalizacji, w każdym kanale) dostaje kopię pełnego
+   * wyniku zamiast nowego sprawdzenia: ten sam werdykt i te same dowody. 0 wyłącza. Kopia znika
+   * najpóźniej z retencją (CHECKS_RETENTION_HOURS) albo po usunięciu sesji.
+   */
+  CHECK_REUSE_HOURS: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(24)),
   /** Limit nowych sprawdzeń na klienta (IP) na minutę. */
   RATE_LIMIT_PER_MINUTE: int(10),
   /** Limit odpytań o wynik na klienta na minutę (polling co ~1 s mieści się z zapasem). */

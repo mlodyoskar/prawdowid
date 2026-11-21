@@ -98,7 +98,7 @@ Zasady z makiet: werdykt zawsze ma ikonę i słowo; komunikat systemowy (awaria,
 
 ### Kanał WhatsApp
 
-Drugi kanał działa przez oficjalne WhatsApp Cloud API od Meta. Kod jest w [apps/api/src/whatsapp](apps/api/src/whatsapp) i jest tylko adapterem: wiadomość trafia do tej samej kolejki co zgłoszenie z WWW (`JobRunner` → `runVerification()`), więc werdykt i dowody są te same. Odpowiedź zaczyna się od werdyktu, podaje główne źródło z cytatem i kończy linkiem `WEB_ORIGIN/?check=<id>`, który otwiera ten sam zapisany wynik na stronie.
+Drugi kanał działa przez oficjalne WhatsApp Cloud API od Meta. Kod jest w [apps/api/src/whatsapp](apps/api/src/whatsapp) i jest tylko adapterem: wiadomość trafia do tej samej kolejki co zgłoszenie z WWW (`JobRunner` → `runVerification()`). To samo zgłoszenie z obu kanałów dostaje jeden wynik (patrz [Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)), więc werdykt i dowody są te same. Odpowiedź zaczyna się od werdyktu, podaje z cytatem każdą publikację, na której opiera się werdykt (te same co WWW, kontekst zostaje w pełnym wyniku), i kończy linkiem `WEB_ORIGIN/?check=<id>`, który otwiera ten sam zapisany wynik na stronie.
 
 - Obsługiwane: tekst, link, zdjęcie (z podpisem lub bez). `POMOC` pokazuje instrukcję, `USUŃ` kasuje sprawdzenia wysłane z tego numeru.
 - Awaria (brak modelu, pełna kolejka, nieudane pobranie zdjęcia, błąd sprawdzenia) wraca jako komunikat „To nie jest werdykt”.
@@ -129,7 +129,7 @@ Zmienne ustawia się w Railway, nie w plikach:
 - **API:** `OPENROUTER_API_KEY`, `LLM_MODEL`, `RESEARCH_MODE=plan`, `REQUIRE_LLM=true`, `GOOGLE_FACTCHECK_API_KEY`, `WHATSAPP_*` (kanał WhatsApp), `WEB_ORIGIN` (dokładny adres frontendu, z `https://`, bez `/` na końcu), `TRUST_PROXY=true`, `CHECKS_DB_PATH=/data/checks.db` (wolumen pod `/data`; korpus zostaje w obrazie), ceny `LLM_PRICE_*_PER_MTOK`.
 - **Web:** `VITE_API_URL` (adres API z `https://`, wbudowywany przy buildzie), `RAILPACK_SPA_OUTPUT_DIR=apps/web/dist`.
 
-API działa w jednej replice: SQLite, kolejka i limity żądań są w pamięci procesu. Wdrożenie przerywa trwające sprawdzenia (kończą się błędem), więc w czasie testów nie wypychaj zmian na `main`.
+API działa w jednej replice: SQLite, kolejka, limity żądań i łączenie identycznych zgłoszeń w toku są w pamięci procesu. Gotowe wyniki do ponownego użycia leżą w `checks.db` na wolumenie, więc przetrwają wdrożenie. Wdrożenie przerywa trwające sprawdzenia (kończą się błędem), więc w czasie testów nie wypychaj zmian na `main`.
 
 ## Praca z repo
 

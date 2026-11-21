@@ -1,0 +1,12 @@
+{
+  "name": "@prawdowid/contracts",
+  "private": true,
+  "description": "Wspólne schematy zod i typy: Verdict, ClaimResult, Evidence, CheckRequest/CheckResponse",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  }
+}

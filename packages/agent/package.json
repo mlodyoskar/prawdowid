@@ -1,0 +1,16 @@
+{
+  "name": "@prawdowid/agent",
+  "private": true,
+  "description": "Logika weryfikacji: verify(), narzędzia AI SDK, wybór modelu",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@prawdowid/contracts": "workspace:*",
+    "@prawdowid/sources": "workspace:*"
+  }
+}

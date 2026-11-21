@@ -6,16 +6,55 @@ Wyzwanie MSZ na HackNation 2026.
 
 ## Mapa repo
 
-| Ścieżka | Zawartość |
-|---|---|
-| [docs/challenge/wymagania.md](docs/challenge/wymagania.md) | Wymagania wyzwania w wersji tekstowej: MVP, werdykty, metryki, ocena, co oddać |
-| [docs/challenge/tresc-zadania.pdf](docs/challenge/tresc-zadania.pdf) | Oryginalna treść zadania |
-| [docs/challenge/regulamin.pdf](docs/challenge/regulamin.pdf) | Oryginalny regulamin (nagroda, prawa autorskie) |
-| [docs/data-sources.md](docs/data-sources.md) | Dane: katalog źródeł, fact-checki, EUvsDisinfo, czego brakuje |
-| [docs/open-questions.md](docs/open-questions.md) | Otwarte pytania do mentorów |
-| [data/sources.ts](data/sources.ts) | Lista URL-i źródeł: jedyne źródło prawdy |
-| [.env.example](.env.example) | Wymagane zmienne środowiskowe (bez wartości) |
+### Kod
+
+| Ścieżka                                  | Zawartość                                                                                         |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [apps/web](apps/web)                     | Frontend WWW                                                                                      |
+| [apps/api](apps/api)                     | HTTP API: walidacja wejścia, zapis przebiegu sprawdzenia, limity; woła `verify()`                 |
+| [packages/contracts](packages/contracts) | Wspólne schematy zod i typy: `Verdict`, `ClaimResult`, `Evidence`, `CheckRequest`/`CheckResponse` |
+| [packages/agent](packages/agent)         | Logika weryfikacji: `verify()`, narzędzia AI SDK, wybór modelu                                    |
+| [packages/sources](packages/sources)     | Warstwa danych: korpus (SQLite FTS) i scraper, klient Google Fact Check, pobieranie URL-i         |
+
+Zależności: `api → agent → sources → contracts`. Frontend zna tylko `contracts`.
+
+### Dokumenty i dane
+
+| Ścieżka                                                              | Zawartość                                                                      |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [docs/challenge/wymagania.md](docs/challenge/wymagania.md)           | Wymagania wyzwania w wersji tekstowej: MVP, werdykty, metryki, ocena, co oddać |
+| [docs/challenge/zadania.md](docs/challenge/zadania.md)               | Przykładowe pytania jury z oczekiwanymi odpowiedziami                          |
+| [docs/challenge/tresc-zadania.pdf](docs/challenge/tresc-zadania.pdf) | Oryginalna treść zadania                                                       |
+| [docs/challenge/regulamin.pdf](docs/challenge/regulamin.pdf)         | Oryginalny regulamin (nagroda, prawa autorskie)                                |
+| [docs/data-sources.md](docs/data-sources.md)                         | Dane: katalog źródeł, fact-checki, EUvsDisinfo, czego brakuje                  |
+| [docs/open-questions.md](docs/open-questions.md)                     | Otwarte pytania do mentorów                                                    |
+| [data/sources.ts](data/sources.ts)                                   | Lista URL-i źródeł: jedyne źródło prawdy                                       |
+| [.env.example](.env.example)                                         | Wymagane zmienne środowiskowe (bez wartości)                                   |
 
 ## Uruchomienie
 
-Jeszcze nie ma. Ta sekcja powstanie razem z kodem.
+Wymagania: Node 26 (uruchamia pliki `.ts` bez kompilacji) i pnpm 10 (`corepack enable` włącza wersję z `package.json`).
+
+```bash
+pnpm install
+cp .env.example .env   # i uzupełnij klucze
+```
+
+Uruchomienie aplikacji opiszemy, gdy powstanie kod.
+
+## Praca z repo
+
+| Polecenie                           | Co robi                                         |
+| ----------------------------------- | ----------------------------------------------- |
+| `pnpm check`                        | Wszystko poniżej po kolei; uruchom przed pushem |
+| `pnpm format` / `pnpm format:check` | Formatowanie (oxfmt)                            |
+| `pnpm lint` / `pnpm lint:fix`       | Lint (oxlint z regułami korzystającymi z typów) |
+| `pnpm typecheck`                    | TypeScript w każdym projekcie                   |
+| `pnpm test`                         | Testy (`node --test`, pliki `*.test.ts`)        |
+
+Konfiguracja:
+
+- `tsconfig.base.json` to wspólny, ścisły config. Każdy projekt ma własny `tsconfig.json` z `extends` i dopisuje swoje opcje (np. `apps/web` dodaje DOM i rozwiązywanie modułów dla bundlera). Nie ma kroku budowania: TypeScript tylko sprawdza typy (`noEmit`), a Node uruchamia `.ts` bezpośrednio. Dlatego obowiązuje `erasableSyntaxOnly`: bez `enum` i `namespace`.
+- `oxlint.config.ts` to bazowa konfiguracja lintera. Projekt może mieć własny `oxlint.config.ts`, który importuje bazę i ją rozszerza (przykład: `apps/web`).
+- `oxfmt.config.ts` formatuje TS, JSON i Markdown.
+- Pakiety wewnętrzne eksportują `./src/index.ts` i są importowane prosto ze źródeł, np. `import { ... } from '@prawdowid/contracts'`.

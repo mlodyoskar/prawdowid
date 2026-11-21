@@ -1,0 +1,12 @@
+{
+  "name": "@prawdowid/web",
+  "private": true,
+  "description": "Frontend WWW",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@prawdowid/contracts": "workspace:*"
+  }
+}

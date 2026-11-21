@@ -1,0 +1,21 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "pnpm --filter @prawdowid/web build",
+    "watchPatterns": [
+      "apps/web/**",
+      "packages/contracts/**",
+      "Caddyfile",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      ".nvmrc"
+    ]
+  },
+  "deploy": {
+    "healthcheckPath": "/health",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5
+  }
+}

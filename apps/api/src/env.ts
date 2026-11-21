@@ -43,6 +43,17 @@ const Env = z.object({
   ),
   /** Temperatura w trybie `plan`. Puste = parametr nie jest wysyłany (część modeli go nie przyjmuje). */
   LLM_TEMPERATURE: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(2).optional()),
+  /**
+   * Cena modelu w USD za milion tokenów (wejście/wyjście), do zapisu kosztu sprawdzenia.
+   * Puste = koszt nie jest liczony, zostają same tokeny.
+   */
+  LLM_PRICE_INPUT_PER_MTOK: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  LLM_PRICE_OUTPUT_PER_MTOK: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  /**
+   * true = serwer nie startuje bez skonfigurowanego modelu. Na produkcji wdrożenie bez LLM
+   * nie przechodzi wtedy healthchecku, a platforma zostawia poprzednią wersję.
+   */
+  REQUIRE_LLM: boolFlag(false),
   GOOGLE_FACTCHECK_API_KEY: optionalString,
   CORPUS_DB_PATH: z.preprocess(emptyToUndefined, z.string().default('data/corpus.db')),
   CHECKS_DB_PATH: z.preprocess(emptyToUndefined, z.string().default('data/checks.db')),

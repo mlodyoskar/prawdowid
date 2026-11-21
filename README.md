@@ -28,6 +28,8 @@ Zależności: `api → agent → sources → contracts`. Frontend zna tylko `con
 | [docs/challenge/regulamin.pdf](docs/challenge/regulamin.pdf)         | Oryginalny regulamin (nagroda, prawa autorskie)                                |
 | [docs/data-sources.md](docs/data-sources.md)                         | Dane: katalog źródeł, fact-checki, EUvsDisinfo, czego brakuje                  |
 | [docs/open-questions.md](docs/open-questions.md)                     | Otwarte pytania do mentorów                                                    |
+| [docs/agent.md](docs/agent.md)                                       | Projekt agenta: decyzje, tryby `agent` i `plan`, reguły werdyktu, stan prac    |
+| [todo.md](todo.md)                                                   | Odłożone decyzje                                                               |
 | [data/sources.ts](data/sources.ts)                                   | Lista URL-i źródeł: jedyne źródło prawdy                                       |
 | [.env.example](.env.example)                                         | Wymagane zmienne środowiskowe (bez wartości)                                   |
 
@@ -63,6 +65,8 @@ Sprawdzenie działa jako zadanie asynchroniczne: `POST` od razu zwraca `202` z `
 curl -s localhost:3000/api/checks -H 'content-type: application/json' -d '{"text":"Od grudnia wraca obowiązkowy pobór do wojska"}'
 curl -s localhost:3000/api/checks/<checkId>
 ```
+
+Krok wyszukiwania ma dwa tryby wybierane zmienną `RESEARCH_MODE`: `agent` (domyślny, pętla modelu z narzędziami) i `plan` (plan zapytań wykonywany przez kod oraz sędzia bez narzędzi). Opis i porównanie: [docs/agent.md](docs/agent.md).
 
 `result.status` to `ok` (werdykty z dowodami), `needs_clarification`, `out_of_scope` albo `error` (awaria techniczna, nigdy werdykt). Typy są w [packages/contracts](packages/contracts/src/index.ts).
 

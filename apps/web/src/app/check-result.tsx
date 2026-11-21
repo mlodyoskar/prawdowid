@@ -43,16 +43,24 @@ const ERROR_TITLE: Record<ErrorCode, string> = {
   missing_config: 'Usługa nie jest skonfigurowana',
   timeout: 'Sprawdzanie trwało zbyt długo',
   internal: 'Sprawdzanie przerwane',
+  sources_unavailable: 'Źródła są chwilowo niedostępne',
 };
 
 function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evidence[] }) {
   const [first, ...rest] = evidence;
   const insufficient = claim.verdict === 'brak wystarczających dowodów';
-  const hasLimitations = claim.limitations.trim().length > 0;
+  const unknowns = claim.unknowns ?? [];
+  const hasLimitations = claim.limitations.trim().length > 0 || unknowns.length > 0;
+  const useOf = (e: Evidence) => claim.evidenceUse?.find((u) => u.id === e.id);
 
   return (
     <>
-      {first ? <EvidenceSource evidence={first} /> : null}
+      {claim.discrepancy ? (
+        <Notice variant="caution" title="Źródła podają rozbieżne informacje">
+          <p>Porównaj je poniżej. Nie rozstrzygamy, które ma rację.</p>
+        </Notice>
+      ) : null}
+      {first ? <EvidenceSource evidence={first} use={useOf(first)} /> : null}
       {rest.length > 0 || hasLimitations ? (
         <Accordion type="multiple" defaultValue={insufficient ? ['limitations'] : []}>
           {rest.length > 0 ? (
@@ -60,7 +68,7 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
               <AccordionTrigger>Pokaż pozostałe źródła ({rest.length})</AccordionTrigger>
               <AccordionContent className="flex flex-col gap-4">
                 {rest.map((e, i) => (
-                  <EvidenceSource key={`${i}-${e.id}`} evidence={e} />
+                  <EvidenceSource key={`${i}-${e.id}`} evidence={e} use={useOf(e)} />
                 ))}
               </AccordionContent>
             </AccordionItem>
@@ -68,8 +76,15 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
           {hasLimitations ? (
             <AccordionItem value="limitations">
               <AccordionTrigger>Czego nie ustaliliśmy</AccordionTrigger>
-              <AccordionContent>
-                <p className="m-0 text-body">{claim.limitations}</p>
+              <AccordionContent className="flex flex-col gap-2">
+                {unknowns.length > 0 ? (
+                  <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-body">
+                    {unknowns.map((u, i) => (
+                      <li key={`${i}-${u}`}>{u}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {claim.limitations ? <p className="m-0 text-body">{claim.limitations}</p> : null}
               </AccordionContent>
             </AccordionItem>
           ) : null}
@@ -114,6 +129,7 @@ function OkView({ result }: { result: OkResult }) {
             verdict={claim.verdict}
             explanation={claim.explanation}
             confidence={claim.verdict === 'nie podlega weryfikacji' ? undefined : claim.confidence}
+            reasons={claim.confidenceReasons}
           >
             <ClaimEvidence
               claim={claim}
@@ -122,6 +138,26 @@ function OkView({ result }: { result: OkResult }) {
           </ClaimCard>
         </div>
       ))}
+
+      {result.unchecked && result.unchecked.length > 0 ? (
+        <Notice title="Tego nie udało się sprawdzić">
+          <p>To nie jest ocena tych twierdzeń – źródła były niedostępne.</p>
+          <ul className="m-0 flex list-disc flex-col gap-1 pl-5">
+            {result.unchecked.map((u, i) => (
+              <li key={`${i}-${u.claim}`}>
+                „{u.claim}” – {u.reason}
+              </li>
+            ))}
+          </ul>
+        </Notice>
+      ) : null}
+
+      {result.searched && result.searched.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <Eyebrow>Gdzie sprawdziliśmy</Eyebrow>
+          <p className="m-0 text-caption text-ink-muted">{result.searched.join(' · ')}</p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { Evidence, SourceType } from '@prawdowid/contracts';
+import type { Evidence, EvidenceUse, SourceType, Stance } from '@prawdowid/contracts';
 
 import { formatDate, hostname, isWebUrl } from '@/lib/format.ts';
 import { FactcheckSourceIcon, OfficialSourceIcon, SourceCard } from '@/ui';
@@ -8,13 +8,26 @@ const SOURCE_TYPE_LABEL: Record<SourceType, string> = {
   secondary: 'Źródło wtórne',
 };
 
+const STANCE_LABEL: Record<Stance, string> = {
+  supports: 'Potwierdza twierdzenie',
+  refutes: 'Przeczy twierdzeniu',
+  context: 'Uzupełnia kontekst',
+};
+
+/** Search engines mark hits with «»; they are not part of the source text. */
+const stripMarkers = (text: string) => text.replace(/[«»]/g, '');
+
 function typeLabel(e: Evidence): string {
   if (e.kind === 'factcheck') return 'Fact-check';
   return e.sourceType ? SOURCE_TYPE_LABEL[e.sourceType] : 'Źródło';
 }
 
-/** Maps an `Evidence` record from the API onto the design system's SourceCard. */
-export function EvidenceSource({ evidence: e }: { evidence: Evidence }) {
+/**
+ * Maps an `Evidence` record from the API onto the design system's SourceCard.
+ * `use` comes from plan mode: the source's role for this claim and the quote the code verified.
+ */
+export function EvidenceSource({ evidence: e, use }: { evidence: Evidence; use?: EvidenceUse }) {
+  const quote = use?.quote || stripMarkers(e.excerpt);
   const web = isWebUrl(e.url);
   const published = formatDate(e.publishedAt);
   const fetched = formatDate(e.fetchedAt);
@@ -34,12 +47,17 @@ export function EvidenceSource({ evidence: e }: { evidence: Evidence }) {
       title={e.title}
       href={web ? e.url : undefined}
       meta={meta}
-      quote={e.excerpt ? `„${e.excerpt}”` : undefined}
+      quote={quote ? `„${quote}”` : undefined}
       caution={e.isMock ? 'Dane demonstracyjne – to nie jest prawdziwa publikacja.' : undefined}
       footer={
-        e.rating ? (
-          <span className="text-label">
-            Ocena fact-checkera: <span className="font-bold">{e.rating}</span>
+        e.rating || use ? (
+          <span className="flex flex-col gap-1 text-label">
+            {e.rating ? (
+              <span>
+                Ocena fact-checkera: <span className="font-bold">{e.rating}</span>
+              </span>
+            ) : null}
+            {use ? <span className="font-bold">{STANCE_LABEL[use.stance]}</span> : null}
           </span>
         ) : undefined
       }

@@ -36,6 +36,7 @@ import {
 } from './verify.ts';
 
 const DEFAULT_MAX_CLAIMS = 3;
+const MIN_CLAIM_LENGTH = 3;
 const MAX_SEARCHES_PER_CLAIM = 4;
 const MAX_REFINE_SEARCHES = 3;
 const MAX_RESULTS_PER_SEARCH = 6;
@@ -70,8 +71,8 @@ export type PlanOptions = VerifyOptions & {
   /** 0 wyłącza rundę poprawy zapytań. */
   maxRefineRounds?: number;
   refineBudgetMs?: number;
-  /** `null` pomija parametr (modele, które go nie przyjmują). */
-  temperature?: number | null;
+  /** Domyślnie parametr nie jest wysyłany: część modeli go nie przyjmuje. */
+  temperature?: number;
   onStage?: (stage: PlanStage) => void;
 };
 
@@ -80,6 +81,8 @@ export type PlanMetrics = VerifyMetrics & {
   modelCalls: number;
   claims: number;
   refinedClaims: number;
+  /** Rundy poprawy przerwane błędem lub limitem czasu: wynik opiera się wtedy na pierwszej ocenie. */
+  refineErrors: number;
   /** Ile werdyktów sędziego kod zdegradował z braku oparcia w dowodach. */
   downgradedVerdicts: number;
   stageMs: Partial<Record<PlanStage, number>>;
@@ -119,7 +122,15 @@ export async function verifyPlanned(
   const stageMs: Partial<Record<PlanStage, number>> = {};
   let modelCalls = 0;
   let refinedClaims = 0;
+  let refineErrors = 0;
   let claims: ClaimState[] = [];
+  const piiFound = new Set<PiiKind>();
+  /** Model przepisuje treść z obrazu i ze stron, więc jego teksty też maskujemy przed zapisem i źródłami. */
+  const mask = (text: string): string => {
+    const result = maskPii(text, startedAt);
+    for (const kind of result.found) piiFound.add(kind);
+    return result.text;
+  };
 
   const meta = () => ({
     checkId: options.checkId,
@@ -176,12 +187,13 @@ export async function verifyPlanned(
     sourceFailures: registry.failures.length,
     steps: modelCalls,
     injectionSignals: [...registry.injectionSignals],
-    piiMasked: masked.found,
+    piiMasked: [...new Set([...masked.found, ...piiFound])],
     pages: { fetched: pages.filter((p) => p.ok).length, failed: pages.filter((p) => !p.ok).length },
     mode: 'plan',
     modelCalls,
     claims: claims.length,
     refinedClaims,
+    refineErrors,
     downgradedVerdicts: claims.filter((c) => c.guarded?.downgraded).length,
     stageMs: { ...stageMs },
   });
@@ -193,13 +205,12 @@ export async function verifyPlanned(
     schema: S,
   ): Promise<z.infer<S>> => {
     modelCalls++;
-    const temperature = options.temperature === undefined ? 0 : options.temperature;
     const result = await generateText({
       model,
       instructions,
       messages,
       output: Output.object({ schema }),
-      ...(temperature === null ? {} : { temperature }),
+      ...(options.temperature === undefined ? {} : { temperature: options.temperature }),
       ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
     });
     usage.seen = true;
@@ -285,6 +296,36 @@ export async function verifyPlanned(
     claim.guarded = applyGuardrails(claim.judgement, claim.evidence);
   };
 
+  /** Inne zapytania dla twierdzenia, którego nic nie dotyczyło wprost, i ponowna ocena. */
+  const refine = async (claim: ClaimState): Promise<void> => {
+    const refinement = await callModel(
+      deps.model,
+      buildRefineInstructions(startedAt),
+      [
+        {
+          role: 'user',
+          content: buildRefinePrompt(
+            claim.text,
+            claim.searches,
+            [...claim.evidence.values()].map((e) => e.title),
+          ),
+        },
+      ],
+      Refinement,
+    );
+    const known = new Set(claim.searches.map((s) => searchKey(s)));
+    const fresh = cleanSearches(refinement.searches, MAX_REFINE_SEARCHES, mask).filter(
+      (s) => !known.has(searchKey(s)),
+    );
+    if (fresh.length === 0) return;
+    const before = claim.evidence.size;
+    claim.searches.push(...fresh);
+    await search(claim, fresh);
+    if (claim.evidence.size === before) return;
+    refinedClaims++;
+    await judge(claim);
+  };
+
   try {
     // 1. Twierdzenia i plan zapytań.
     enter('extract');
@@ -305,14 +346,32 @@ export async function verifyPlanned(
           : 'Nie udało się wydzielić twierdzenia do sprawdzenia. Napisz dokładniej, co chcesz zweryfikować.');
       return { response: { ...meta(), status, message }, metrics: metrics() };
     }
-    claims = extraction.claims.slice(0, maxClaims).map((c) => ({
-      text: c.text.trim(),
-      checkable: c.checkable,
-      notCheckableReason: c.notCheckableReason.trim(),
-      searches: c.checkable ? cleanSearches(c.searches, MAX_SEARCHES_PER_CLAIM, c.text) : [],
-      evidence: new Map(),
-      failures: new Map(),
-    }));
+    claims = extraction.claims
+      .map((c) => ({ ...c, text: mask(c.text.trim()) }))
+      .filter((c) => c.text.length >= MIN_CLAIM_LENGTH)
+      .slice(0, maxClaims)
+      .map((c) => ({
+        text: c.text,
+        checkable: c.checkable,
+        notCheckableReason: mask(c.notCheckableReason.trim()),
+        searches: c.checkable
+          ? cleanSearches(c.searches, MAX_SEARCHES_PER_CLAIM, mask, c.text)
+          : [],
+        evidence: new Map(),
+        failures: new Map(),
+      }));
+    if (claims.length === 0) {
+      enter(null);
+      return {
+        response: {
+          ...meta(),
+          status: 'needs_clarification',
+          message:
+            'Nie udało się wydzielić twierdzenia do sprawdzenia. Napisz dokładniej, co chcesz zweryfikować.',
+        },
+        metrics: metrics(),
+      };
+    }
     const checkable = claims.filter((c) => c.checkable);
 
     // 2. Wszystkie zapytania naraz.
@@ -331,38 +390,22 @@ export async function verifyPlanned(
       enter('refine');
       await Promise.all(
         candidates.map(async (claim) => {
-          const refinement = await callModel(
-            deps.model,
-            buildRefineInstructions(startedAt),
-            [
-              {
-                role: 'user',
-                content: buildRefinePrompt(
-                  claim.text,
-                  claim.searches,
-                  [...claim.evidence.values()].map((e) => e.title),
-                ),
-              },
-            ],
-            Refinement,
-          );
-          const known = new Set(claim.searches.map((s) => searchKey(s)));
-          const fresh = cleanSearches(refinement.searches, MAX_REFINE_SEARCHES).filter(
-            (s) => !known.has(searchKey(s)),
-          );
-          if (fresh.length === 0) return;
-          const before = claim.evidence.size;
-          claim.searches.push(...fresh);
-          await search(claim, fresh);
-          if (claim.evidence.size === before) return;
-          refinedClaims++;
-          await judge(claim);
+          // Pierwsza ocena już jest: błąd albo limit czasu w rundzie poprawy nie może jej skasować.
+          try {
+            await refine(claim);
+          } catch {
+            refineErrors++;
+          }
         }),
       );
     }
-
     // 5. Złożenie wyniku: tu rozstrzyga już tylko kod.
     enter('compose');
+    if (piiFound.size > 0) {
+      preWarnings.push(
+        `Ukryliśmy dane osobowe odczytane z przesłanego materiału (${describePii([...piiFound])}).`,
+      );
+    }
     const response = compose(claims, registry, meta, startedAt, preWarnings);
     enter(null);
     return { response: { ...response, durationMs: elapsed() }, metrics: metrics() };
@@ -382,12 +425,13 @@ function searchKey(request: SearchRequest): string {
 function cleanSearches(
   searches: readonly SearchRequest[],
   max: number,
+  mask: (text: string) => string,
   fallbackQuery?: string,
 ): SearchRequest[] {
   const seen = new Set<string>();
   const out: SearchRequest[] = [];
   for (const s of searches) {
-    const query = s.query.trim().slice(0, 300);
+    const query = mask(s.query.trim().slice(0, 300));
     if (query.length < 2) continue;
     const request = { ...s, query };
     const key = searchKey(request);
@@ -397,7 +441,7 @@ function cleanSearches(
     if (out.length >= max) break;
   }
   if (out.length === 0 && fallbackQuery) {
-    const query = fallbackQuery.trim().slice(0, 300);
+    const query = mask(fallbackQuery.trim().slice(0, 300));
     return [
       { tool: 'search_corpus', query, languageCode: 'pl' },
       { tool: 'search_factchecks', query, languageCode: 'pl' },
@@ -452,7 +496,11 @@ function compose(
 
     const failed = [...state.failures.keys()];
     // Brak dowodów przy niedostępnym źródle to nie wynik merytoryczny, tylko niesprawdzone twierdzenie.
-    if (guarded.verdict === 'brak wystarczających dowodów' && failed.length > 0) {
+    if (
+      guarded.verdict === 'brak wystarczających dowodów' &&
+      failed.length > 0 &&
+      !guarded.hasDirect
+    ) {
       unchecked.push({
         claim: state.text,
         reason: `Nie udało się sprawdzić: ${describeFailures(state.failures)}`,
@@ -475,9 +523,11 @@ function compose(
       verdict: guarded.verdict,
       confidence: strength.confidence,
       // Uzasadnienie sędziego dotyczyło werdyktu, którego nie utrzymaliśmy.
-      explanation: guarded.downgraded
-        ? 'Nie znaleźliśmy materiału, który wprost potwierdza albo obala to twierdzenie. To nie znaczy, że jest ono prawdziwe lub fałszywe.'
-        : judgement.explanation.trim(),
+      explanation: !guarded.downgraded
+        ? judgement.explanation.trim()
+        : guarded.hasDirect
+          ? 'Znalezione materiały dotyczą tego twierdzenia, ale nie pozwalają go jednoznacznie rozstrzygnąć. Zobacz źródła i oceń sam.'
+          : 'Nie znaleźliśmy materiału, który wprost potwierdza albo obala to twierdzenie. To nie znaczy, że jest ono prawdziwe lub fałszywe.',
       evidenceIds: guarded.evidenceUse.map((u) => u.id),
       limitations: [
         judgement.limitations.trim(),
@@ -512,8 +562,15 @@ function compose(
     ...preWarnings,
     ...registry.injectionSignals.map((s) => injectionWarning(s, registry)),
   ];
-  for (const label of new Set(registry.failures.map((f) => SOURCE_LABEL[f.tool]))) {
-    warnings.push(`Źródło było niedostępne podczas sprawdzania: ${label}.`);
+  const succeeded = (tool: ToolName) =>
+    registry.calls[tool] - registry.failures.filter((f) => f.tool === tool).length;
+  for (const tool of TOOL_NAMES) {
+    if (succeeded(tool) === registry.calls[tool]) continue;
+    warnings.push(
+      succeeded(tool) === 0
+        ? `Źródło było niedostępne podczas sprawdzania: ${SOURCE_LABEL[tool]}.`
+        : `Część zapytań do źródła się nie powiodła: ${SOURCE_LABEL[tool]}.`,
+    );
   }
   const evidence = [...cited.values()];
   for (const e of evidence) {
@@ -527,10 +584,9 @@ function compose(
     warnings.push('Część dowodów pochodzi z danych testowych (mock), a nie z prawdziwych źródeł.');
   }
 
-  const failedTools = new Set(registry.failures.map((f) => f.tool));
-  const searched = TOOL_NAMES.filter(
-    (tool) => registry.calls[tool] > 0 && !failedTools.has(tool),
-  ).map((tool) => SOURCE_LABEL[tool]);
+  const searched = TOOL_NAMES.filter((tool) => succeeded(tool) > 0).map(
+    (tool) => SOURCE_LABEL[tool],
+  );
 
   return {
     ...meta(),

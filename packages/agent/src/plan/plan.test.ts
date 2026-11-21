@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import type { Evidence } from '@prawdowid/contracts';
 
 import { applyGuardrails } from './guardrails.ts';
-import { quoteAppearsIn } from './quote.ts';
+import { isVerifiedQuote, quoteAppearsIn } from './quote.ts';
 import type { Judgement } from './schemas.ts';
 import { computeStrength } from './strength.ts';
 
@@ -213,4 +213,48 @@ test('siła podstawy: strona bez daty publikacji liczy się po dacie pobrania', 
   });
   assert.equal(s.confidence, 'średnia');
   assert.ok(s.reasons.some((r) => r.includes('data pobrania')));
+});
+
+test('cytat: kilka znaków to za mało, ale sama ocena fact-checkera wystarcza', () => {
+  assert.equal(isVerifiedQuote('NATO', doc()), false);
+  assert.equal(isVerifiedQuote('Belgia', doc()), false);
+  assert.equal(isVerifiedQuote('Fałsz', factcheck()), true);
+  assert.equal(isVerifiedQuote('Fałsz', doc()), false);
+  assert.equal(isVerifiedQuote('', factcheck()), false);
+});
+
+test('reguły: materiał bez potwierdzonego cytatu nie trafia do wyniku nawet jako kontekst', () => {
+  const g = applyGuardrails(
+    judgement({
+      verdict: 'brak wystarczających dowodów',
+      items: [
+        { id: 'doc_1', relation: 'related', stance: 'context', quote: '', addressesModel: false },
+      ],
+    }),
+    available(doc()),
+  );
+  assert.deepEqual(g.evidenceUse, []);
+});
+
+test('reguły: werdykt sprzeczny z rolą materiału wprost jest wstrzymany, a materiał zostaje', () => {
+  const g = applyGuardrails(
+    judgement({
+      verdict: 'potwierdzone',
+      items: [
+        {
+          id: 'doc_1',
+          relation: 'direct',
+          stance: 'refutes',
+          quote: '02 grudnia 2026, Bruksela, Belgia',
+          addressesModel: false,
+        },
+      ],
+    }),
+    available(doc()),
+  );
+  assert.equal(g.verdict, 'brak wystarczających dowodów');
+  assert.equal(g.downgraded, true);
+  assert.equal(g.hasDirect, true);
+  assert.equal(g.evidenceUse[0]?.stance, 'refutes');
+  assert.ok(g.notes.some((n) => n.includes('nie zgadzała się')));
 });

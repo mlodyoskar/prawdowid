@@ -60,7 +60,7 @@ Dwa wywołania modelu jedno po drugim w typowym przypadku, cztery przy rundzie p
 
 ### Jak wybierzemy
 
-Ten sam zestaw testowy na obu trybach. Porównujemy: macro-F1 werdyktów, odsetek poprawnych wstrzymań, poprawność cytatów, medianę czasu, zgodność wyniku przy trzykrotnym powtórzeniu, koszt 100 sprawdzeń. Domyślnym trybem zostaje `plan`, chyba że `agent` wyraźnie wygra na macro-F1 i zmieści się w czasie oraz w powtarzalności.
+Ten sam zestaw testowy na obu trybach. Porównujemy: macro-F1 werdyktów, odsetek poprawnych wstrzymań, poprawność cytatów, medianę czasu, zgodność wyniku przy trzykrotnym powtórzeniu, koszt 100 sprawdzeń. Docelowo domyślnym trybem ma być `plan`, chyba że `agent` wyraźnie wygra na macro-F1 i zmieści się w czasie oraz w powtarzalności. Do czasu ewaluacji domyślny w kodzie jest `agent` (`RESEARCH_MODE` w `apps/api/src/env.ts`).
 
 ## Sędzia i reguły w kodzie (tryb `plan`)
 

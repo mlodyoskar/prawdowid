@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 
 import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
-import { verify, verifyPlanned } from '@prawdowid/agent';
+import { runVerification } from '@prawdowid/agent';
 import { fetchPage, openCorpus, searchFactChecks } from '@prawdowid/sources';
 import type { Context } from 'hono';
 
@@ -56,16 +56,21 @@ const runner = new JobRunner({
   timeoutMs: env.CHECK_TIMEOUT_MS,
   run: (input, options) => {
     if (!model) throw new Error('LLM not configured');
-    const deps = {
-      model,
-      corpus,
-      factchecks: (q: Parameters<typeof searchFactChecks>[0]) =>
-        searchFactChecks(q, { apiKey: env.GOOGLE_FACTCHECK_API_KEY }),
-      fetchPage: (url: string) => fetchPage(url),
-    };
-    return env.RESEARCH_MODE === 'plan'
-      ? verifyPlanned(input, { ...deps, ...(judgeModel ? { judgeModel } : {}) }, options)
-      : verify(input, deps, options);
+    return runVerification(
+      input,
+      {
+        model,
+        corpus,
+        factchecks: (q) => searchFactChecks(q, { apiKey: env.GOOGLE_FACTCHECK_API_KEY }),
+        fetchPage: (url) => fetchPage(url),
+        ...(judgeModel ? { judgeModel } : {}),
+      },
+      {
+        ...options,
+        mode: env.RESEARCH_MODE,
+        ...(env.LLM_TEMPERATURE === undefined ? {} : { temperature: env.LLM_TEMPERATURE }),
+      },
+    );
   },
   // Log bez treści pytania (minimalizacja danych).
   onDone: (checkId, { response, metrics }) => {

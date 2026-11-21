@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import type { SourceResult } from '@prawdowid/sources';
 import { MockLanguageModelV4 } from 'ai/test';
 
+import { runVerification } from './run.ts';
 import { verifyPlanned, type PlanDeps, type PlanStage } from './verify-planned.ts';
 
 const usage = {
@@ -387,4 +388,129 @@ test('poza zakresem i błąd modelu nie są werdyktami', async () => {
     abortSignal: controller.signal,
   });
   assert.equal(c.response.status === 'error' && c.response.code, 'timeout');
+});
+
+test('błąd w rundzie poprawy nie kasuje pierwszej oceny', async () => {
+  let judged = 0;
+  const model = new MockLanguageModelV4({
+    doGenerate: async (options) => {
+      const prompt = JSON.stringify(options.prompt);
+      if (prompt.includes('Jesteś etapem wyszukiwania')) throw new Error('timeout');
+      const reply = prompt.includes('Jesteś sędzią') ? (judged++, NOTHING) : extraction([{}]);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(reply) }],
+        finishReason: { unified: 'stop', raw: undefined },
+        usage,
+        warnings: [],
+      };
+    },
+  });
+  const { response, metrics } = await verifyPlanned(
+    { text: 'x' },
+    deps(model, { corpus: () => EMPTY }).deps,
+    { checkId: 'x' },
+  );
+  assert.equal(response.status, 'ok');
+  if (response.status !== 'ok') return;
+  assert.equal(response.claims[0]?.verdict, 'brak wystarczających dowodów');
+  assert.equal(metrics.refineErrors, 1);
+  assert.equal(judged, 1);
+});
+
+test('werdykt sprzeczny z materiałem: wstrzymanie bez twierdzenia, że nic nie znaleziono', async () => {
+  const { model } = stagedModel({
+    extract: extraction([{}]),
+    judge: { ...refutes(), verdict: 'potwierdzone' },
+  });
+  const { response } = await verifyPlanned({ text: 'x' }, deps(model).deps, { checkId: 'x' });
+  assert.equal(response.status, 'ok');
+  if (response.status !== 'ok') return;
+  const [claim] = response.claims;
+  assert.equal(claim?.verdict, 'brak wystarczających dowodów');
+  assert.ok(claim?.explanation.startsWith('Znalezione materiały dotyczą tego twierdzenia'));
+  assert.equal(claim?.evidenceUse?.[0]?.stance, 'refutes');
+  assert.equal(response.evidence.length, 1);
+});
+
+test('dane osobowe przepisane przez model są maskowane w twierdzeniu i w zapytaniach', async () => {
+  const { model } = stagedModel({
+    extract: extraction([
+      {
+        text: 'Jan Kowalski (tel. 601 234 567) pisze, że wraca pobór.',
+        searches: [
+          { tool: 'search_factchecks', query: 'pobór 601 234 567', languageCode: 'pl' },
+          { tool: 'search_corpus', query: 'pobór wojsko', languageCode: 'pl' },
+        ],
+      },
+    ]),
+    judge: refutes(),
+  });
+  const { deps: d, sourceCalls } = deps(model);
+  const { response, metrics } = await verifyPlanned({ text: 'x' }, d, { checkId: 'x' });
+  assert.equal(response.status, 'ok');
+  if (response.status !== 'ok') return;
+  assert.ok(!response.claims[0]?.claim.includes('601'));
+  assert.ok(sourceCalls.factchecks.every((q) => !q.includes('601')));
+  assert.ok(metrics.piiMasked.includes('TELEFON'));
+  assert.ok(response.warnings.some((w) => w.includes('odczytane z przesłanego materiału')));
+});
+
+test('jedno nieudane zapytanie nie oznacza całego źródła jako niedostępnego', async () => {
+  const { model } = stagedModel({
+    extract: extraction([
+      {
+        searches: [
+          { tool: 'search_corpus', query: 'pobór wojsko', languageCode: 'pl' },
+          { tool: 'search_corpus', query: 'awaria', languageCode: 'pl' },
+        ],
+      },
+    ]),
+    judge: refutes(),
+  });
+  const { deps: d } = deps(model, {
+    corpus: (query) =>
+      query === 'awaria' ? { ok: false, reason: 'unavailable', message: 'Błąd.' } : corpusHit,
+  });
+  const { response } = await verifyPlanned({ text: 'x' }, d, { checkId: 'x' });
+  assert.equal(response.status, 'ok');
+  if (response.status !== 'ok') return;
+  assert.deepEqual(response.searched, ['Korpus dokumentów urzędowych']);
+  assert.ok(response.warnings.some((w) => w.startsWith('Część zapytań do źródła')));
+});
+
+test('puste twierdzenie od modelu → prośba o doprecyzowanie, bez wyszukiwania', async () => {
+  const { model } = stagedModel({ extract: extraction([{ text: '  ', searches: [] }]) });
+  const { deps: d, sourceCalls } = deps(model);
+  const { response } = await verifyPlanned({ text: 'x' }, d, { checkId: 'x' });
+  assert.equal(response.status, 'needs_clarification');
+  assert.deepEqual(sourceCalls, { corpus: [], factchecks: [] });
+});
+
+test('runVerification: tryb plan idzie przez verifyPlanned, temperatura tylko gdy ustawiona', async () => {
+  const temperatures: unknown[] = [];
+  const model = new MockLanguageModelV4({
+    doGenerate: async (options) => {
+      temperatures.push(options.temperature);
+      const reply = JSON.stringify(options.prompt).includes('Jesteś sędzią')
+        ? refutes()
+        : extraction([{}]);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(reply) }],
+        finishReason: { unified: 'stop', raw: undefined },
+        usage,
+        warnings: [],
+      };
+    },
+  });
+  const a = await runVerification({ text: 'x' }, deps(model).deps, { checkId: 'x', mode: 'plan' });
+  assert.equal(a.response.status === 'ok' && a.response.mode, 'plan');
+  assert.deepEqual(temperatures, [undefined, undefined]);
+
+  temperatures.length = 0;
+  await runVerification({ text: 'x' }, deps(model).deps, {
+    checkId: 'x',
+    mode: 'plan',
+    temperature: 0,
+  });
+  assert.deepEqual(temperatures, [0, 0]);
 });

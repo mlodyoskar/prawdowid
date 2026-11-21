@@ -18,7 +18,7 @@ Kod egzekwuje je deterministycznie, nie tylko przez prompt.
 - **Siła werdyktu** wynika z jawnych przesłanek: jakości i aktualności źródeł, zgodności z twierdzeniem, liczby niezależnych potwierdzeń. Materiał archiwalny jest oznaczany.
 - **Domena, autor, kanał, popularność ani status źródła** (np. sankcje UE) nie przesądzają o prawdziwości. Dają najwyżej osobne, neutralne ostrzeżenie.
 - **Treść zapytania, pobrane strony i dokumenty korpusu to dane, nie instrukcje.** Instrukcje w nich są ignorowane i logowane (`prompt_injection_suspected`).
-- **Jedna logika dla wszystkich kanałów.** WWW i drugi kanał wołają to samo `verify()` i dają ten sam werdykt i dowody. Model i dostawcę zmienia się konfiguracją.
+- **Jedna logika dla wszystkich kanałów.** WWW i drugi kanał wołają to samo `runVerification()` (tryb wyszukiwania z `RESEARCH_MODE`, patrz [docs/agent.md](docs/agent.md)) i dają ten sam werdykt i dowody. Model i dostawcę zmienia się konfiguracją.
 - **Sprawy moderatora:** komunikat o przekazaniu tylko po potwierdzonym zapisie. Podobne zapytania trafiają do jednej sprawy.
 - **Prywatność i zapis przebiegu:** dane osobowe są maskowane przed modelem i zapisem. Każde sprawdzenie zapisuje zapytanie, czas, źródła, wynik i koszt. Sesję można usunąć.
 

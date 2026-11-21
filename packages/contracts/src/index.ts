@@ -79,7 +79,7 @@ export type Stance = z.infer<typeof Stance>;
 export const EvidenceUse = z.object({
   id: z.string(),
   stance: Stance,
-  /** Dosłowny fragment materiału sprawdzony w kodzie. Pusty, gdy dowód tylko uzupełnia kontekst. */
+  /** Dosłowny fragment materiału (albo ocena fact-checkera), którego obecność w źródle sprawdził kod. */
   quote: z.string(),
 });
 export type EvidenceUse = z.infer<typeof EvidenceUse>;

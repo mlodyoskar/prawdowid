@@ -41,6 +41,8 @@ const Env = z.object({
       .regex(/^[\w-]+:.+$/, 'Format: <dostawca>:<model>')
       .optional(),
   ),
+  /** Temperatura w trybie `plan`. Puste = parametr nie jest wysyłany (część modeli go nie przyjmuje). */
+  LLM_TEMPERATURE: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(2).optional()),
   GOOGLE_FACTCHECK_API_KEY: optionalString,
   CORPUS_DB_PATH: z.preprocess(emptyToUndefined, z.string().default('data/corpus.db')),
   CHECKS_DB_PATH: z.preprocess(emptyToUndefined, z.string().default('data/checks.db')),

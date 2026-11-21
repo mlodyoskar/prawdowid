@@ -1,6 +1,6 @@
 import type { Evidence, EvidenceUse, Verdict } from '@prawdowid/contracts';
 
-import { evidenceText, quoteAppearsIn } from './quote.ts';
+import { isVerifiedQuote } from './quote.ts';
 import type { Judgement } from './schemas.ts';
 
 export type GuardedClaim = {
@@ -43,18 +43,19 @@ export function applyGuardrails(
     if (item.addressesModel) flagged.push(item.id);
     if (item.relation === 'unrelated') continue;
 
-    const quoteOk = item.quote.trim() !== '' && quoteAppearsIn(item.quote, evidenceText(evidence));
-    const direct = item.relation === 'direct' && quoteOk;
-
-    if (item.stance !== 'context' && !quoteOk) {
-      notes.push(`Pominięto materiał „${evidence.title}”: przytoczonego fragmentu w nim nie ma.`);
+    // Bez potwierdzonego cytatu materiał nie trafia do wyniku, także jako kontekst.
+    if (!isVerifiedQuote(item.quote, evidence)) {
+      if (item.stance !== 'context') {
+        notes.push(`Pominięto materiał „${evidence.title}”: przytoczonego fragmentu w nim nie ma.`);
+      }
       continue;
     }
+    const direct = item.relation === 'direct';
     kept.set(item.id, {
       id: item.id,
       // Materiał z tego samego tematu, ale o innej sprawie, może tylko uzupełniać kontekst.
       stance: item.relation === 'direct' ? item.stance : 'context',
-      quote: quoteOk ? item.quote.trim() : '',
+      quote: item.quote.trim(),
       evidence,
       direct,
     });
@@ -78,7 +79,11 @@ export function applyGuardrails(
   const downgraded = needsBasis && basisFor[proposed].length === 0;
   const verdict: Verdict = downgraded ? 'brak wystarczających dowodów' : proposed;
   if (downgraded) {
-    notes.push('Żaden materiał z potwierdzonym cytatem nie rozstrzyga tego twierdzenia wprost.');
+    notes.push(
+      directItems.length > 0
+        ? 'Ocena modelu nie zgadzała się z rolą przytoczonych materiałów, więc jej nie przyjęliśmy.'
+        : 'Żaden materiał z potwierdzonym cytatem nie rozstrzyga tego twierdzenia wprost.',
+    );
   }
 
   return {

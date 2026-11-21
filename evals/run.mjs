@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import {
   readFileSync,
   writeFileSync,
@@ -48,6 +49,9 @@ if (
 )
   throw Error('Invalid mode, repeat or workers');
 const read = (p) => readFileSync(p, 'utf8');
+// Wersja kodu, na której powstał przebieg; „-dirty” przy niezacommitowanych zmianach.
+const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+const commit = git('rev-parse', '--short', 'HEAD') + (git('status', '--porcelain') ? '-dirty' : '');
 const cases = read('evals/cases.jsonl').trim().split('\n').map(JSON.parse);
 const requested = cases.filter(
   (c) =>
@@ -239,6 +243,7 @@ try {
           costUsd: estimateCostUsd(result.metrics.usage, pricing) ?? null,
           temperature: temperature ?? null,
           reuse: v.reuse,
+          commit,
           ...result,
         };
         appendFileSync(output, JSON.stringify(row) + '\n');
@@ -256,3 +261,4 @@ try {
 }
 const { score, lines } = await import('./score.mjs');
 console.table(score(lines(output)));
+console.log('Raport z wynikami: pnpm eval:results ' + output + ' [kolejne pliki]');

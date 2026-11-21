@@ -31,7 +31,10 @@ const basis = (r) =>
   );
 const ratio = (hits, total) =>
   total ? hits + '/' + total + ' (' + ((100 * hits) / total).toFixed(1) + '%)' : '—';
-export function score(rows) {
+export const score = (rows) => scoreDetailed(rows).summary;
+
+/** Jak `score`, plus TP/FP/FN dla każdego werdyktu (podstawa macro-F1). */
+export function scoreDetailed(rows) {
   const direct = rows.filter((r) => r.channel === 'direct'),
     counts = {},
     labels = new Map(),
@@ -157,7 +160,7 @@ export function score(rows) {
     .map((x) => x.elapsedMs / 1000)
     .toSorted((a, b) => a - b);
   const costs = fresh.filter((x) => x.costUsd !== null);
-  return {
+  const summary = {
     checks: direct.length,
     'Macro-F1': labels.size
       ? (
@@ -178,6 +181,7 @@ export function score(rows) {
     metered: costs.length,
     reused: direct.length - fresh.length,
   };
+  return { summary, classes: Object.fromEntries(labels) };
 }
 if (import.meta.main)
   for (const path of process.argv.slice(2)) console.log(path, score(lines(path)));

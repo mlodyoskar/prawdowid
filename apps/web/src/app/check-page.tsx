@@ -39,12 +39,23 @@ export function CheckPage() {
   const [image, setImage] = useState<AttachedImage | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [lastRequest, setLastRequest] = useState<CheckRequest | null>(null);
+  // Confirmations for the always-mounted status region (progress is derived from state).
+  const [confirmation, setConfirmation] = useState('');
+  const [focusTick, setFocusTick] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLElement>(null);
 
   const busy = state.phase === 'submitting' || state.phase === 'waiting';
   const settled = state.phase === 'done' || state.phase === 'failed';
+
+  // Focus the textarea after the render that re-enables it (cancel, delete, new check).
+  const focusInput = () => setFocusTick((t) => t + 1);
+  useEffect(() => {
+    if (focusTick > 0) textareaRef.current?.focus();
+  }, [focusTick]);
+
+  const announcement = busy ? `${STEPS[currentStep(state)]}…` : confirmation;
 
   // A shared link (?check=…) opens that check's result.
   useEffect(() => {
@@ -78,6 +89,8 @@ export function CheckPage() {
   };
 
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    // Office apps put text and an image rendering of it on the clipboard: prefer the text.
+    if (e.clipboardData.getData('text/plain')) return;
     const file = Array.from(e.clipboardData.files).find((f) => f.type.startsWith('image/'));
     if (!file) return;
     e.preventDefault();
@@ -86,6 +99,7 @@ export function CheckPage() {
 
   const run = (request: CheckRequest) => {
     setLastRequest(request);
+    setConfirmation('');
     void submit(request);
   };
 
@@ -110,13 +124,36 @@ export function CheckPage() {
     setImage(null);
     setFormError(null);
     window.scrollTo({ top: 0 });
-    textareaRef.current?.focus();
+    focusInput();
   };
 
   const edit = () => {
     reset();
-    textareaRef.current?.focus();
+    focusInput();
   };
+
+  const cancelCheck = () => {
+    cancel();
+    setConfirmation('Anulowaliśmy sprawdzanie.');
+    focusInput();
+  };
+
+  const removeCheck = async () => {
+    const ok = await remove();
+    if (ok) {
+      setConfirmation('Usunęliśmy zapis sprawdzenia.');
+      focusInput();
+    }
+    return ok;
+  };
+
+  // After a failure, resume polling a check that exists; otherwise send the message again.
+  const failedCheckId = state.phase === 'failed' ? state.checkId : undefined;
+  const retryFailed = failedCheckId
+    ? () => void open(failedCheckId)
+    : lastRequest
+      ? () => run(lastRequest)
+      : undefined;
 
   const hint =
     'Możesz też wkleić zrzut ekranu (Ctrl+V) albo dodać zdjęcie gazety, plakatu lub ekranu – odczytamy z niego tekst.';
@@ -237,10 +274,8 @@ export function CheckPage() {
             <h2 id="progress-title" className="m-0 text-title-2">
               Sprawdzamy – to potrwa do 30 sekund
             </h2>
-            <div aria-live="polite">
-              <Steps label="Postęp sprawdzania" steps={STEPS} current={currentStep(state)} />
-            </div>
-            <Button variant="text" className="self-start" onClick={cancel}>
+            <Steps label="Postęp sprawdzania" steps={STEPS} current={currentStep(state)} />
+            <Button variant="text" className="self-start" onClick={cancelCheck}>
               Anuluj sprawdzanie
             </Button>
           </section>
@@ -260,18 +295,18 @@ export function CheckPage() {
                 onNewCheck={newCheck}
                 onRetry={lastRequest ? () => run(lastRequest) : undefined}
                 onEdit={edit}
-                onRemove={remove}
+                onRemove={removeCheck}
               />
             ) : null}
             {state.phase === 'failed' ? (
               <div className="flex flex-col gap-6">
                 <Notice title={state.title}>
                   <p>{state.message}</p>
-                  {state.canRetry && lastRequest ? (
+                  {state.canRetry && retryFailed ? (
                     <Button
                       variant="secondary"
                       className="justify-self-start"
-                      onClick={() => run(lastRequest)}
+                      onClick={retryFailed}
                     >
                       Spróbuj ponownie
                     </Button>
@@ -313,6 +348,10 @@ export function CheckPage() {
           </div>
         </section>
       </main>
+
+      <output className="sr-only" aria-live="polite">
+        {announcement}
+      </output>
 
       <SiteFooter />
     </div>

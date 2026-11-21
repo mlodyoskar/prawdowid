@@ -7,18 +7,10 @@ type SummaryBannerProps = {
   title: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
-  /** Lets the page move focus here when the result arrives. */
-  headingRef?: React.Ref<HTMLHeadingElement>;
 };
 
 /** Navy summary block at the top of a result (primary-strong, like MSZ graphics on gov.pl). */
-export function SummaryBanner({
-  eyebrow,
-  title,
-  children,
-  className,
-  headingRef,
-}: SummaryBannerProps) {
+export function SummaryBanner({ eyebrow, title, children, className }: SummaryBannerProps) {
   return (
     <section
       className={cn(
@@ -27,9 +19,7 @@ export function SummaryBanner({
       )}
     >
       <span className="text-eyebrow uppercase">{eyebrow}</span>
-      <h2 ref={headingRef} tabIndex={-1} className="m-0 text-title-1 outline-offset-4">
-        {title}
-      </h2>
+      <h2 className="m-0 text-title-1">{title}</h2>
       {children ? <div className="text-body [&_p]:m-0">{children}</div> : null}
     </section>
   );

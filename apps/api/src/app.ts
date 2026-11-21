@@ -56,7 +56,15 @@ export function createApp(deps: AppDeps) {
   const getLimiter = new FixedWindowLimiter({ limit: deps.rateLimit.getPerMinute });
 
   if (!deps.quiet) app.use(logger());
-  app.use('/api/*', cors({ origin: deps.webOrigin, allowMethods: ['GET', 'POST', 'DELETE'] }));
+  app.use(
+    '/api/*',
+    cors({
+      origin: deps.webOrigin,
+      allowMethods: ['GET', 'POST', 'DELETE'],
+      // Retry-After is not CORS-safelisted: without this the browser cannot read the polling hint.
+      exposeHeaders: ['Retry-After', 'Location'],
+    }),
+  );
 
   app.get('/health', (c) =>
     c.json({ ok: true, llm: deps.llmConfigured, sources: deps.health(), queue: deps.runner.stats }),

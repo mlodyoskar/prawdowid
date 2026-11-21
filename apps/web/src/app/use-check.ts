@@ -8,11 +8,17 @@ export type CheckState =
   | { phase: 'submitting' }
   | { phase: 'waiting'; checkId: string; jobState: 'queued' | 'running' }
   | { phase: 'done'; checkId: string; result: CheckResponse }
-  | { phase: 'failed'; title: string; message: string; canRetry: boolean };
+  | {
+      phase: 'failed';
+      title: string;
+      message: string;
+      canRetry: boolean;
+      /** Set when the check exists on the server, so a retry can resume polling it. */
+      checkId?: string;
+    };
 
 /** The server stops a check after ~30 s; past this we stop waiting for it on our side. */
 const CLIENT_TIMEOUT_MS = 90_000;
-const MAX_TRANSIENT_FAILURES = 5;
 const CHECK_PARAM = 'check';
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -41,13 +47,14 @@ function writeCheckParam(checkId: string | null) {
   window.history.replaceState(null, '', url);
 }
 
-function failure(err: unknown): Extract<CheckState, { phase: 'failed' }> {
+function failure(err: unknown, checkId?: string): Extract<CheckState, { phase: 'failed' }> {
   if (!(err instanceof ApiError)) {
     return {
       phase: 'failed',
       title: 'Coś poszło nie tak',
       message: 'Wystąpił nieoczekiwany błąd. Spróbuj ponownie.',
       canRetry: true,
+      checkId,
     };
   }
   const titles: Record<number, string> = {
@@ -67,7 +74,13 @@ function failure(err: unknown): Extract<CheckState, { phase: 'failed' }> {
         ? 'Zapis mógł zostać usunięty. Sprawdzenia przechowujemy przez 72 godziny.'
         : err.message,
     canRetry: !notRetryable,
+    checkId: err.status === 404 ? undefined : checkId,
   };
+}
+
+/** Worth waiting out while polling: no connection, rate limit, or a server hiccup (e.g. a deploy). */
+function isTransient(err: unknown): err is ApiError {
+  return err instanceof ApiError && (err.status === 0 || err.status === 429 || err.status >= 500);
 }
 
 /** Runs one check at a time: submit, poll until done, cancel, delete. */
@@ -92,17 +105,15 @@ export function useCheck() {
 
   const follow = useCallback(async (checkId: string, signal: AbortSignal) => {
     const deadline = Date.now() + CLIENT_TIMEOUT_MS;
-    let transientFailures = 0;
     while (!signal.aborted) {
       try {
         const { job, retryAfterMs } = await getCheck(checkId, signal);
-        transientFailures = 0;
         if (signal.aborted) return;
         if (job.state === 'done') {
           setState(
             job.result
               ? { phase: 'done', checkId, result: job.result }
-              : failure(new ApiError('Usługa zwróciła nieoczekiwaną odpowiedź.', 200)),
+              : failure(new ApiError('Usługa zwróciła nieoczekiwaną odpowiedź.', 200), checkId),
           );
           return;
         }
@@ -113,19 +124,19 @@ export function useCheck() {
             title: 'Sprawdzanie trwa zbyt długo',
             message: 'Nie dostaliśmy odpowiedzi na czas. To nie jest ocena Twojej wiadomości.',
             canRetry: true,
+            checkId,
           });
           return;
         }
         await sleep(retryAfterMs, signal);
       } catch (err) {
         if (signal.aborted) return;
-        const transient = err instanceof ApiError && (err.status === 0 || err.status === 429);
-        if (transient && transientFailures < MAX_TRANSIENT_FAILURES) {
-          transientFailures += 1;
+        // Keep waiting out transient errors until the deadline, honoring Retry-After.
+        if (isTransient(err) && Date.now() < deadline) {
           await sleep(err.retryAfterMs ?? 2000, signal);
           continue;
         }
-        setState(failure(err));
+        setState(failure(err, checkId));
         return;
       }
     }
@@ -134,10 +145,17 @@ export function useCheck() {
   const submit = useCallback(
     async (request: CheckRequest) => {
       const ctrl = start();
+      // Forget the previous check right away, so cancel or a failed POST never touches it.
+      checkIdRef.current = null;
+      writeCheckParam(null);
       setState({ phase: 'submitting' });
       try {
         const job = await createCheck(request, ctrl.signal);
-        if (ctrl.signal.aborted) return;
+        if (ctrl.signal.aborted) {
+          // Cancelled while the POST was in flight: don't leave the job running and stored.
+          deleteCheck(job.checkId).catch(() => undefined);
+          return;
+        }
         checkIdRef.current = job.checkId;
         writeCheckParam(job.checkId);
         setState({ phase: 'waiting', checkId: job.checkId, jobState: 'queued' });
@@ -180,10 +198,12 @@ export function useCheck() {
     if (!checkId) return false;
     try {
       await deleteCheck(checkId);
-    } catch {
-      return false;
+    } catch (err) {
+      // Already gone (expired, or deleted elsewhere) is what the user wanted.
+      if (!(err instanceof ApiError && err.status === 404)) return false;
     }
-    reset();
+    // A newer check may have started while the DELETE was in flight: leave it alone.
+    if (checkIdRef.current === checkId) reset();
     return true;
   }, [reset]);
 

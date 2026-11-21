@@ -1,6 +1,6 @@
 import { CheckJob, type CheckRequest } from '@prawdowid/contracts';
 
-const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 /** A failed request. `status` 0 means the API could not be reached at all. */
 export class ApiError extends Error {

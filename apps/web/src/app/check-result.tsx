@@ -59,8 +59,8 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
             <AccordionItem value="sources">
               <AccordionTrigger>Pokaż pozostałe źródła ({rest.length})</AccordionTrigger>
               <AccordionContent className="flex flex-col gap-4">
-                {rest.map((e) => (
-                  <EvidenceSource key={e.id} evidence={e} />
+                {rest.map((e, i) => (
+                  <EvidenceSource key={`${i}-${e.id}`} evidence={e} />
                 ))}
               </AccordionContent>
             </AccordionItem>
@@ -98,8 +98,8 @@ function OkView({ result }: { result: OkResult }) {
       {result.warnings.length > 0 ? (
         <Notice variant="caution" title="Zwróć uwagę">
           <ul className="m-0 flex list-disc flex-col gap-1 pl-5">
-            {result.warnings.map((w) => (
-              <li key={w}>{w}</li>
+            {result.warnings.map((w, i) => (
+              <li key={`${i}-${w}`}>{w}</li>
             ))}
           </ul>
         </Notice>

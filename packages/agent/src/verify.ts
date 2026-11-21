@@ -65,6 +65,8 @@ export type VerifyMetrics = {
   costUsd?: number;
   /** Wersja korpusu, na której wykonano sprawdzenie. Uzupełnia ją wywołujący. */
   corpusVersion?: string;
+  /** Wynik skopiowany z wcześniejszego sprawdzenia tego samego zgłoszenia, bez wywołań modelu. */
+  reused?: boolean;
 };
 
 export function emptyMetrics(): VerifyMetrics {
@@ -267,9 +269,6 @@ function postProcess(
         `Materiał archiwalny: „${e.title}” (${e.publishedAt.slice(0, 10)}). Może być nieaktualny.`,
       );
     }
-  }
-  if (evidence.some((e) => e.isMock)) {
-    warnings.push('Część dowodów pochodzi z danych testowych (mock), a nie z prawdziwych źródeł.');
   }
 
   return {

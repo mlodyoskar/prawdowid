@@ -31,7 +31,6 @@ export type CorpusDocument = {
   contentHash?: string | null;
   /** Ocena wystawiona przez redakcję fact-checkingową (dla dokumentów wtórnych). */
   rating?: string | null;
-  isMock?: boolean;
 };
 
 export type CorpusInfo = {
@@ -52,7 +51,7 @@ export type Corpus = {
 };
 
 /** Zmiana schematu = nowy numer. Plik korpusu jest pochodną danych, więc buduje się go od nowa. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 /** Z jednego dokumentu do wyniku trafiają najwyżej tyle fragmentów. */
 const MAX_FRAGMENTS_PER_DOCUMENT = 2;
@@ -74,8 +73,7 @@ CREATE TABLE IF NOT EXISTS documents (
   institution  TEXT,
   updated_at   TEXT,
   content_hash TEXT,
-  rating       TEXT,
-  is_mock      INTEGER NOT NULL DEFAULT 0
+  rating       TEXT
 );
 
 CREATE TABLE IF NOT EXISTS fragments (
@@ -141,8 +139,8 @@ export function insertDocument(db: DatabaseSync, doc: CorpusDocument): void {
   const { lastInsertRowid: documentId } = db
     .prepare(
       `INSERT INTO documents (url, title, publisher, domain, source_type, published_at, fetched_at,
-                              source_id, external_id, institution, updated_at, content_hash, rating, is_mock)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              source_id, external_id, institution, updated_at, content_hash, rating)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       doc.url,
@@ -158,7 +156,6 @@ export function insertDocument(db: DatabaseSync, doc: CorpusDocument): void {
       doc.updatedAt ?? null,
       doc.contentHash ?? null,
       doc.rating ?? null,
-      doc.isMock ? 1 : 0,
     );
 
   const insertFragment = db.prepare(
@@ -192,7 +189,6 @@ type Row = {
   published_at: string | null;
   fetched_at: string;
   rating: string | null;
-  is_mock: number;
   document_id: number;
   position: number;
   fragment_id: string | null;
@@ -208,7 +204,7 @@ export function openCorpus(path: string): Corpus {
   // potem cytaty. Tytuł i treść fragmentu ważą tyle samo (wagi do strojenia na zestawie testowym).
   const searchStmt = db.prepare(`
     SELECT d.url, d.title, d.publisher, d.source_type, d.published_at, d.fetched_at, d.rating,
-           d.is_mock, f.document_id, f.position, f.external_id AS fragment_id, f.text
+           f.document_id, f.position, f.external_id AS fragment_id, f.text
     FROM fragments_fts
     JOIN fragments f ON f.id = fragments_fts.rowid
     JOIN documents d ON d.id = f.document_id
@@ -218,7 +214,7 @@ export function openCorpus(path: string): Corpus {
   `);
   const fragmentsStmt = db.prepare(`
     SELECT d.url, d.title, d.publisher, d.source_type, d.published_at, d.fetched_at, d.rating,
-           d.is_mock, f.document_id, f.position, f.external_id AS fragment_id, f.text
+           f.document_id, f.position, f.external_id AS fragment_id, f.text
     FROM documents d
     JOIN fragments f ON f.document_id = d.id
     WHERE d.url = ?
@@ -295,7 +291,6 @@ function toHit(row: Row): SourceHit {
     fragmentId: row.fragment_id ?? `f${String(row.position + 1).padStart(2, '0')}`,
     sourceType: row.source_type,
     ...(row.rating ? { rating: row.rating } : {}),
-    ...(row.is_mock ? { isMock: true } : {}),
   };
 }
 

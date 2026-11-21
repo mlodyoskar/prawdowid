@@ -49,7 +49,7 @@ export function hostname(url: string): string {
   }
 }
 
-/** Only http(s) URLs are rendered as links; mock:// and anything else stays plain text. */
+/** Only http(s) URLs are rendered as links; anything else stays plain text. */
 export function isWebUrl(url: string): boolean {
   try {
     const { protocol } = new URL(url);

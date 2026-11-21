@@ -6,7 +6,7 @@ import { cn } from '../lib/utils.ts';
 /**
  * shadcn/ui Alert restyled as the gov.pl message box: tinted background and a 4px side bar.
  * - notice: system messages that are NOT verdicts (failure, limit, clarify, out of scope).
- * - caution: neutral warning about a source (sanctioned entity, archival material, mock data).
+ * - caution: neutral warning about a source (sanctioned entity, archival material).
  * Pass `role="status"` or `role="alert"` only when the box appears in response to an action.
  */
 const alertVariants = cva(

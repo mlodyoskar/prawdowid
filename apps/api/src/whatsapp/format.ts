@@ -27,6 +27,9 @@ const ERROR_TITLE: Record<ErrorCode, string> = {
 
 const NOT_A_VERDICT = 'To nie jest werdykt.';
 
+/** Źródła-podstawy na twierdzenie w wiadomości. Więcej mieści się w limicie znaków rzadko. */
+const MAX_SOURCES_PER_CLAIM = 3;
+
 const dateFmt = new Intl.DateTimeFormat('pl-PL', {
   day: '2-digit',
   month: '2-digit',
@@ -63,7 +66,6 @@ function evidenceBlock(e: Evidence, quote: string | undefined): string {
   const lines = [`Źródło: ${truncate(e.title, 160)}${meta ? ` (${meta})` : ''}`];
   if (e.rating) lines.push(`Ocena fact-checkera: ${e.rating}`);
   if (quote) lines.push(`„${truncate(quote, 300)}”`);
-  if (e.isMock) lines.push('Dane demonstracyjne – to nie jest prawdziwa publikacja.');
   if (isWebUrl(e.url)) lines.push(e.url);
   return lines.join('\n');
 }
@@ -88,12 +90,15 @@ function claimBlock(
   if (unknowns.length > 0) lines.push(`Nie ustaliliśmy: ${truncate(unknowns.join('; '), 300)}`);
 
   const evidence = claim.evidenceIds.flatMap((id) => byId.get(id) ?? []);
-  const first = evidence[0];
-  if (first) {
-    const quote = claim.evidenceUse?.find((u) => u.id === first.id)?.quote;
-    lines.push('', evidenceBlock(first, quote));
-    if (evidence.length > 1)
-      lines.push(`Pozostałe źródła (${evidence.length - 1}) w pełnym wyniku.`);
+  const useOf = (e: Evidence) => claim.evidenceUse?.find((u) => u.id === e.id);
+  // Te same publikacje, na których WWW opiera werdykt, w tej samej kolejności. Materiały
+  // kontekstowe zostają w pełnym wyniku. Bez podstawy pokazujemy pierwszy materiał.
+  const basis = evidence.filter((e) => useOf(e)?.stance !== 'context');
+  const shown = basis.length > 0 ? basis.slice(0, MAX_SOURCES_PER_CLAIM) : evidence.slice(0, 1);
+  if (shown.length > 0) {
+    for (const e of shown) lines.push('', evidenceBlock(e, useOf(e)?.quote));
+    const rest = evidence.length - shown.length;
+    if (rest > 0) lines.push(`Pozostałe źródła (${rest}) w pełnym wyniku.`);
   } else {
     lines.push('Nie znaleźliśmy źródeł na ten temat.');
   }

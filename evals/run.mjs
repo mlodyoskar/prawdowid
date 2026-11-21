@@ -13,7 +13,9 @@ import { parseArgs } from 'node:util';
 
 import { estimateCostUsd } from '../apps/api/src/cost.ts';
 import { loadEnv } from '../apps/api/src/env.ts';
+import { JobRunner, SqliteJobStore } from '../apps/api/src/jobs.ts';
 import { resolveModel } from '../apps/api/src/model.ts';
+import { isReusable, reuseKey } from '../apps/api/src/reuse.ts';
 import { corpusSources } from '../data/sources.ts';
 import { runVerification } from '../packages/agent/src/run.ts';
 import {
@@ -22,7 +24,7 @@ import {
   importSnapshot,
   insertDocument,
 } from '../packages/sources/src/index.ts';
-import { channelCheck } from './channel.mjs';
+import { channelCheck, directCheck } from './channel.mjs';
 const { values: v } = parseArgs({
   options: {
     mode: { type: 'string', default: 'plan' },
@@ -32,8 +34,13 @@ const { values: v } = parseArgs({
     ids: { type: 'string' },
     'held-out': { type: 'boolean' },
     workers: { type: 'string', default: '4' },
+    // Jak na produkcji: temperatura 0 i ponowne użycie wyniku dla tego samego zgłoszenia.
+    temperature: { type: 'string', default: '0' },
+    reuse: { type: 'boolean', default: true },
   },
+  allowNegative: true,
 });
+const temperature = v.temperature === 'none' ? undefined : Number(v.temperature);
 const workers = Number(v.workers),
   repeat = Number(v.repeat);
 if (
@@ -122,6 +129,84 @@ const queue = Array.from({ length: repeat }, (_, round) =>
     })),
   ),
 ).flat();
+/** Weryfikacja z zależnościami przypadku: awarie, wrogi dokument, nagrania Google, strony. */
+const makeVerify =
+  (c) =>
+  (request, { checkId, abortSignal }) => {
+    const time = Date.now();
+    return runVerification(
+      request,
+      {
+        model:
+          c.fault === 'model'
+            ? {
+                specificationVersion: 'v3',
+                provider: 'fixture',
+                modelId: 'offline',
+                supportedUrls: {},
+                doGenerate: async () => {
+                  throw Error('fixture model unavailable');
+                },
+              }
+            : model,
+        corpus:
+          c.fault === 'corpus'
+            ? { search: () => failure('unavailable') }
+            : c.attack === 'document'
+              ? hostile
+              : clean,
+        now: () => new Date(Date.parse('2026-11-21T12:00:00Z') + Date.now() - time),
+        factchecks: async ({ query }) =>
+          ['missing_key', 'rate_limited'].includes(c.fault)
+            ? failure(c.fault)
+            : /wrocław|65.lat|darmow.*komunikac/i.test(query)
+              ? recordings['Wrocław darmowa komunikacja']
+              : /depesz/i.test(query)
+                ? recordings['PAP usunęła depeszę']
+                : empty,
+        fetchPage: async (url) =>
+          pages.has(url)
+            ? { ok: true, url, finalUrl: url, fetchedAt: '2026-11-21', ...pages.get(url) }
+            : { ok: false, url, reason: 'unavailable', message: 'Unknown fixture URL' },
+      },
+      {
+        mode: v.mode,
+        checkId,
+        abortSignal,
+        ...(temperature === undefined ? {} : { temperature }),
+      },
+    );
+  };
+/**
+ * Oba kanały przechodzą przez ten sam JobRunner co produkcja. Osobny runner (i osobna baza
+ * zadań) na każde środowisko przypadku: wymuszona awaria albo wrogi dokument to inne warunki,
+ * więc ich wyniki nie mogą się mieszać z czystymi przypadkami o tym samym tekście.
+ */
+const runners = new Map();
+const runnerFor = (c) => {
+  const environment = JSON.stringify([c.fault ?? null, c.attack === 'document']);
+  let entry = runners.get(environment);
+  if (!entry) {
+    const handlers = new Map();
+    const runner = new JobRunner({
+      store: new SqliteJobStore(':memory:'),
+      run: makeVerify(c),
+      concurrency: workers,
+      maxQueued: 1000,
+      timeoutMs: 60000,
+      onDone: (checkId, result) => {
+        handlers.get(checkId)?.(result);
+        handlers.delete(checkId);
+      },
+      ...(v.reuse
+        ? { reuse: { key: (input) => reuseKey(input, environment), ttlMs: 3600_000, isReusable } }
+        : {}),
+    });
+    entry = { runner, onDone: (checkId, handler) => handlers.set(checkId, handler) };
+    runners.set(environment, entry);
+  }
+  return entry;
+};
 try {
   const outcomes = await Promise.allSettled(
     Array.from({ length: Math.min(workers, queue.length) }, async () => {
@@ -138,48 +223,11 @@ try {
               }
             : {}),
         };
-        const time = Date.now(),
-          checkId = [c.id, channel, round].join('-');
-        const verify = (request) =>
-          runVerification(
-            request,
-            {
-              model:
-                c.fault === 'model'
-                  ? {
-                      specificationVersion: 'v3',
-                      provider: 'fixture',
-                      modelId: 'offline',
-                      supportedUrls: {},
-                      doGenerate: async () => {
-                        throw Error('fixture model unavailable');
-                      },
-                    }
-                  : model,
-              corpus:
-                c.fault === 'corpus'
-                  ? { search: () => failure('unavailable') }
-                  : c.attack === 'document'
-                    ? hostile
-                    : clean,
-              now: () => new Date(Date.parse('2026-11-21T12:00:00Z') + Date.now() - time),
-              factchecks: async ({ query }) =>
-                ['missing_key', 'rate_limited'].includes(c.fault)
-                  ? failure(c.fault)
-                  : /wrocław|65.lat|darmow.*komunikac/i.test(query)
-                    ? recordings['Wrocław darmowa komunikacja']
-                    : /depesz/i.test(query)
-                      ? recordings['PAP usunęła depeszę']
-                      : empty,
-              fetchPage: async (url) =>
-                pages.has(url)
-                  ? { ok: true, url, finalUrl: url, fetchedAt: '2026-11-21', ...pages.get(url) }
-                  : { ok: false, url, reason: 'unavailable', message: 'Unknown fixture URL' },
-            },
-            { mode: v.mode, checkId, abortSignal: AbortSignal.timeout(60000) },
-          );
+        const time = Date.now();
         const result =
-          channel === 'direct' ? await verify(input) : await channelCheck(input, checkId, verify);
+          channel === 'direct'
+            ? await directCheck(input, runnerFor(c))
+            : await channelCheck(input, runnerFor(c));
         const row = {
           id: c.id,
           mode: v.mode,
@@ -191,6 +239,8 @@ try {
           corpusVersion: clean.info().version,
           price: pricing,
           costUsd: estimateCostUsd(result.metrics.usage, pricing) ?? null,
+          temperature: temperature ?? null,
+          reuse: v.reuse,
           ...result,
         };
         appendFileSync(output, JSON.stringify(row) + '\n');

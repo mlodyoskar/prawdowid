@@ -110,7 +110,11 @@ export function applyGuardrails(
   return {
     verdict,
     downgraded,
-    evidenceUse: items.map(({ id, stance, quote }) => ({ id, stance, quote })),
+    // Najpierw materiały, które wspierają albo obalają twierdzenie, potem kontekst: pierwsze źródło
+    // w WWW i w skróconej odpowiedzi WhatsApp to zawsze podstawa werdyktu, nie przypadkowy kontekst.
+    evidenceUse: items
+      .toSorted((a, b) => Number(a.stance === 'context') - Number(b.stance === 'context'))
+      .map(({ id, stance, quote }) => ({ id, stance, quote })),
     basis: basisFor[verdict].map((i) => i.evidence),
     discrepancy: supports.length > 0 && refutes.length > 0,
     hasDirect: directItems.length > 0,

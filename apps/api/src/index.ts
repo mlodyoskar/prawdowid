@@ -12,6 +12,8 @@ import { estimateCostUsd } from './cost.ts';
 import { loadEnv } from './env.ts';
 import { JobRunner, SqliteJobStore } from './jobs.ts';
 import { resolveModel } from './model.ts';
+import { GraphClient } from './whatsapp/graph.ts';
+import { WhatsAppChannel } from './whatsapp/webhook.ts';
 
 const env = loadEnv();
 type Level = 'info' | 'warn' | 'error';
@@ -68,6 +70,9 @@ const price =
     ? { inputPerMTok: env.LLM_PRICE_INPUT_PER_MTOK, outputPerMTok: env.LLM_PRICE_OUTPUT_PER_MTOK }
     : null;
 
+// Kanał WhatsApp korzysta z tego samego runnera; `onDone` niżej odsyła mu wyniki.
+let whatsapp: WhatsAppChannel | undefined;
+
 const runner = new JobRunner({
   store,
   concurrency: env.MAX_CONCURRENT_CHECKS,
@@ -121,8 +126,42 @@ const runner = new JobRunner({
       },
       response.status === 'error' ? 'warn' : 'info',
     );
+    whatsapp?.onCheckDone(checkId, response);
   },
 });
+
+if (
+  env.WHATSAPP_ACCESS_TOKEN &&
+  env.WHATSAPP_PHONE_NUMBER_ID &&
+  env.WHATSAPP_APP_SECRET &&
+  env.WHATSAPP_VERIFY_TOKEN
+) {
+  whatsapp = new WhatsAppChannel({
+    graph: new GraphClient({
+      accessToken: env.WHATSAPP_ACCESS_TOKEN,
+      phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
+      version: env.WHATSAPP_GRAPH_VERSION,
+    }),
+    runner,
+    appSecret: env.WHATSAPP_APP_SECRET,
+    verifyToken: env.WHATSAPP_VERIFY_TOKEN,
+    webOrigin: env.WEB_ORIGIN,
+    llmConfigured: model !== null,
+    ratePerMinute: env.WHATSAPP_RATE_LIMIT_PER_MINUTE,
+    log,
+  });
+  log('whatsapp_enabled', { graphVersion: env.WHATSAPP_GRAPH_VERSION });
+} else {
+  const missing = (
+    [
+      'WHATSAPP_ACCESS_TOKEN',
+      'WHATSAPP_PHONE_NUMBER_ID',
+      'WHATSAPP_APP_SECRET',
+      'WHATSAPP_VERIFY_TOKEN',
+    ] as const
+  ).filter((k) => !env[k]);
+  log('whatsapp_disabled', { missing }, missing.length === 4 ? 'info' : 'warn');
+}
 
 /** IP klienta. X-Forwarded-For tylko za zaufanym proxy (TRUST_PROXY=true), inaczej łatwo go podrobić. */
 const clientKey = (c: Context): string => {
@@ -152,6 +191,7 @@ const app = createApp({
     getPerMinute: env.RATE_LIMIT_GET_PER_MINUTE,
   },
   onRateLimited: (event) => log('rate_limited', event, 'warn'),
+  whatsapp,
 });
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) =>
@@ -162,6 +202,7 @@ const shutdown = async () => {
   log('server_stopping');
   server.close();
   await runner.shutdown(10_000);
+  await Promise.race([whatsapp?.idle(), new Promise((r) => setTimeout(r, 5_000).unref())]);
   corpus.close();
   store.close();
   process.exit(0);

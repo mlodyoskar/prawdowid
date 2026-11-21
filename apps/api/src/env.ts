@@ -70,6 +70,20 @@ const Env = z.object({
   TRUST_PROXY: boolFlag(false),
   PORT: int(3000),
   WEB_ORIGIN: z.preprocess(emptyToUndefined, z.string().default('http://localhost:5173')),
+  /**
+   * Kanał WhatsApp (Meta Cloud API). Włączony, gdy ustawione są cztery wartości poniżej.
+   * Stały token System User z uprawnieniem whatsapp_business_messaging.
+   */
+  WHATSAPP_ACCESS_TOKEN: optionalString,
+  /** Phone Number ID z panelu WhatsApp → API Setup (to nie jest sam numer telefonu). */
+  WHATSAPP_PHONE_NUMBER_ID: optionalString,
+  /** App Secret aplikacji Meta: weryfikacja podpisu webhooka. */
+  WHATSAPP_APP_SECRET: optionalString,
+  /** Dowolny losowy ciąg, ten sam co w konfiguracji webhooka w panelu Meta. */
+  WHATSAPP_VERIFY_TOKEN: optionalString,
+  WHATSAPP_GRAPH_VERSION: z.preprocess(emptyToUndefined, z.string().default('v23.0')),
+  /** Limit nowych wiadomości na jeden numer na minutę. */
+  WHATSAPP_RATE_LIMIT_PER_MINUTE: int(5),
 });
 
 export type Env = z.infer<typeof Env>;

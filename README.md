@@ -59,7 +59,8 @@ Sprawdzenie działa jako zadanie asynchroniczne: `POST` od razu zwraca `202` z `
 | `POST /api/checks`            | Body `{ "text"?: string, "image"?: { "mediaType": "image/png", "data": "<base64>" } }` → `202` z `checkId` |
 | `GET /api/checks/:checkId`    | Stan zadania `queued` / `running` / `done`; po `done` pole `result` (`CheckResponse`)                      |
 | `DELETE /api/checks/:checkId` | Usuwa zapis sprawdzenia                                                                                    |
-| `GET /health`                 | Konfiguracja LLM, dostępność źródeł, stan kolejki                                                          |
+| `GET /health`                 | Konfiguracja LLM, dostępność źródeł, stan kolejki, włączone kanały                                         |
+| `GET/POST /webhooks/whatsapp` | Webhook kanału WhatsApp (weryfikacja subskrypcji i wiadomości od Meta), patrz niżej                        |
 
 ```bash
 curl -s localhost:3000/api/checks -H 'content-type: application/json' -d '{"text":"Od grudnia wraca obowiązkowy pobór do wojska"}'
@@ -86,6 +87,25 @@ Design system jest w [apps/web/src/ui](apps/web/src/ui), a jego katalog pod adre
 
 Zasady z makiet: werdykt zawsze ma ikonę i słowo; komunikat systemowy (awaria, limit) nigdy nie wygląda jak werdykt; czerwony akcent tylko w nagłówku.
 
+### Kanał WhatsApp
+
+Drugi kanał działa przez oficjalne WhatsApp Cloud API od Meta. Kod jest w [apps/api/src/whatsapp](apps/api/src/whatsapp) i jest tylko adapterem: wiadomość trafia do tej samej kolejki co zgłoszenie z WWW (`JobRunner` → `runVerification()`), więc werdykt i dowody są te same. Odpowiedź zaczyna się od werdyktu, podaje główne źródło z cytatem i kończy linkiem `WEB_ORIGIN/?check=<id>`, który otwiera ten sam zapisany wynik na stronie.
+
+- Obsługiwane: tekst, link, zdjęcie (z podpisem lub bez). `POMOC` pokazuje instrukcję, `USUŃ` kasuje sprawdzenia wysłane z tego numeru.
+- Awaria (brak modelu, pełna kolejka, nieudane pobranie zdjęcia, błąd sprawdzenia) wraca jako komunikat „To nie jest werdykt”.
+- Webhook weryfikuje podpis `X-Hub-Signature-256` (App Secret). Limit wiadomości jest per numer (`WHATSAPP_RATE_LIMIT_PER_MINUTE`), nie per IP, bo wszystko przychodzi z serwerów Meta.
+- Numer telefonu jest tylko w pamięci procesu (do odesłania odpowiedzi). W bazie i logach go nie ma, logi mają skrót. Restart serwera gubi odpowiedzi na trwające sprawdzenia.
+
+Konfiguracja:
+
+1. developers.facebook.com → nowa aplikacja typu Business z produktem WhatsApp. Z _WhatsApp → API Setup_ weź **Phone Number ID** (wystarczy numer testowy) i dodaj numery odbiorców (numer testowy obsługuje do 5).
+2. Stały token: _Business Settings → Users → System users_ → token z uprawnieniami `whatsapp_business_messaging` i `whatsapp_business_management`. Token z _API Setup_ wygasa po 24 h.
+3. **App Secret** z _App Settings → Basic_. **Verify token** wymyślasz sam (losowy ciąg).
+4. Ustaw zmienne `WHATSAPP_*` (patrz [.env.example](.env.example)) i uruchom API. W logu pojawi się `whatsapp_enabled`.
+5. _WhatsApp → Configuration_: Callback URL `https://<adres-api>/webhooks/whatsapp`, Verify token jak w zmiennej, subskrypcja pola `messages`. Lokalnie potrzebny jest publiczny tunel, np. `cloudflared tunnel --url http://localhost:3000`.
+
+Koszt kanału: odpowiedzi na wiadomość od użytkownika mieszczą się w 24-godzinnym oknie obsługi i według cennika Meta są bezpłatne (płatne są tylko szablony wysyłane z inicjatywy firmy, których nie używamy). Użytkownik płaci najwyżej za własną transmisję danych.
+
 ## Wdrożenie (Railway)
 
 Dwie usługi z tego samego repo, obie budowane z katalogu głównego (pakiety workspace muszą być widoczne). Ustawienia budowania i startu są w plikach, w Railway każda usługa wskazuje swój plik w _Settings → Config-as-code_:
@@ -97,7 +117,7 @@ Dwie usługi z tego samego repo, obie budowane z katalogu głównego (pakiety wo
 
 Zmienne ustawia się w Railway, nie w plikach:
 
-- **API:** `OPENROUTER_API_KEY`, `LLM_MODEL`, `RESEARCH_MODE=plan`, `REQUIRE_LLM=true`, `GOOGLE_FACTCHECK_API_KEY`, `WEB_ORIGIN` (dokładny adres frontendu, z `https://`, bez `/` na końcu), `TRUST_PROXY=true`, `CHECKS_DB_PATH=/data/checks.db` (wolumen pod `/data`; korpus zostaje w obrazie), ceny `LLM_PRICE_*_PER_MTOK`.
+- **API:** `OPENROUTER_API_KEY`, `LLM_MODEL`, `RESEARCH_MODE=plan`, `REQUIRE_LLM=true`, `GOOGLE_FACTCHECK_API_KEY`, `WHATSAPP_*` (kanał WhatsApp), `WEB_ORIGIN` (dokładny adres frontendu, z `https://`, bez `/` na końcu), `TRUST_PROXY=true`, `CHECKS_DB_PATH=/data/checks.db` (wolumen pod `/data`; korpus zostaje w obrazie), ceny `LLM_PRICE_*_PER_MTOK`.
 - **Web:** `VITE_API_URL` (adres API z `https://`, wbudowywany przy buildzie), `RAILPACK_SPA_OUTPUT_DIR=apps/web/dist`.
 
 API działa w jednej replice: SQLite, kolejka i limity żądań są w pamięci procesu. Wdrożenie przerywa trwające sprawdzenia (kończą się błędem), więc w czasie testów nie wypychaj zmian na `main`.

@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 
 import { emptyMetrics, type VerifyResult } from '@prawdowid/agent';
@@ -127,4 +131,192 @@ test('delete przerywa trwające zadanie i go nie zapisuje', async () => {
   releaseAll();
   await tick();
   assert.equal(store.get(job.checkId), undefined);
+});
+
+const okResponse = (checkId: string, verdict: 'potwierdzone' | 'fałszywe'): VerifyResult => ({
+  response: {
+    checkId,
+    createdAt: new Date().toISOString(),
+    durationMs: 5,
+    status: 'ok',
+    summary: verdict,
+    claims: [],
+    evidence: [],
+    warnings: [],
+  },
+  metrics,
+});
+
+function reuseRunner(results: Array<(id: string) => VerifyResult>, ttlMs = 3600_000) {
+  const store = new SqliteJobStore(':memory:');
+  const pending: Array<() => void> = [];
+  let calls = 0;
+  const run: RunCheck = (_input, { checkId }) => {
+    const make = results[calls++] ?? ((id: string) => okResponse(id, 'potwierdzone'));
+    return new Promise((resolve) => pending.push(() => resolve(make(checkId))));
+  };
+  let clock = new Date('2026-11-21T10:00:00Z');
+  const runner = new JobRunner({
+    store,
+    run,
+    concurrency: 4,
+    maxQueued: 10,
+    timeoutMs: 5000,
+    now: () => clock,
+    reuse: {
+      key: (input) => input.text ?? null,
+      ttlMs,
+      isReusable: (r) => r.response.status === 'ok',
+    },
+  });
+  return {
+    store,
+    runner,
+    calls: () => calls,
+    release: () => pending.splice(0).forEach((r) => r()),
+    advance: (ms: number) => (clock = new Date(clock.getTime() + ms)),
+  };
+}
+
+const summary = (store: SqliteJobStore, id: string) => {
+  const r = store.get(id)?.result;
+  return r?.status === 'ok' ? r.summary : r?.status;
+};
+
+test('ponowne użycie: gotowy wynik i sprawdzenie w toku', async () => {
+  const t = reuseRunner([(id) => okResponse(id, 'fałszywe')]);
+  const a = t.runner.enqueue({ text: 'x' });
+  const b = t.runner.enqueue({ text: 'x' }); // dołącza do trwającego
+  assert.ok(a && b);
+  assert.equal(t.calls(), 1);
+  t.release();
+  await tick();
+  assert.equal(summary(t.store, b.checkId), 'fałszywe');
+  const c = t.runner.enqueue({ text: 'x' }); // gotowy wynik
+  assert.ok(c);
+  assert.equal(c.state, 'done');
+  assert.equal(summary(t.store, c.checkId), 'fałszywe');
+  assert.equal(t.calls(), 1);
+});
+
+test('ponowne użycie: błąd nie jest utrwalany, czekające zgłoszenie sprawdzamy samodzielnie', async () => {
+  const t = reuseRunner([
+    (id) => ({
+      response: {
+        checkId: id,
+        createdAt: 't',
+        durationMs: 1,
+        status: 'error',
+        code: 'llm_unavailable',
+        message: 'x',
+      },
+      metrics,
+    }),
+  ]);
+  const a = t.runner.enqueue({ text: 'x' });
+  const b = t.runner.enqueue({ text: 'x' });
+  assert.ok(a && b);
+  t.release();
+  await tick();
+  assert.equal(summary(t.store, a.checkId), 'error');
+  assert.equal(t.calls(), 2, 'czekające zgłoszenie uruchomione osobno');
+  t.release();
+  await tick();
+  assert.equal(summary(t.store, b.checkId), 'potwierdzone');
+  const c = t.runner.enqueue({ text: 'x' });
+  assert.equal(c && summary(t.store, c.checkId), 'potwierdzone');
+});
+
+test('ponowne użycie: wynik wygasa po czasie ważności', async () => {
+  const t = reuseRunner([(id) => okResponse(id, 'fałszywe')], 60_000);
+  t.runner.enqueue({ text: 'x' });
+  t.release();
+  await tick();
+  t.advance(61_000);
+  const b = t.runner.enqueue({ text: 'x' });
+  assert.ok(b);
+  assert.equal(t.calls(), 2);
+  t.release();
+  await tick();
+  assert.equal(summary(t.store, b.checkId), 'potwierdzone');
+});
+
+test('ponowne użycie: usunięcie prowadzącego sprawdzenia uruchamia czekające', async () => {
+  const t = reuseRunner([]);
+  const a = t.runner.enqueue({ text: 'x' });
+  const b = t.runner.enqueue({ text: 'x' });
+  assert.ok(a && b);
+  t.runner.delete(a.checkId);
+  t.release();
+  await tick();
+  assert.equal(t.store.get(a.checkId), undefined);
+  assert.equal(t.calls(), 2);
+  t.release();
+  await tick();
+  assert.equal(summary(t.store, b.checkId), 'potwierdzone');
+});
+
+test('ponowne użycie: usunięta sesja nie jest już źródłem kopii', async () => {
+  const t = reuseRunner([(id) => okResponse(id, 'fałszywe')]);
+  const a = t.runner.enqueue({ text: 'x' });
+  assert.ok(a);
+  t.release();
+  await tick();
+  t.runner.delete(a.checkId);
+  t.runner.enqueue({ text: 'x' });
+  assert.equal(t.calls(), 2);
+});
+
+test('istniejąca baza bez kolumn ponownego użycia dostaje je przy starcie', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prawdowid-jobs-'));
+  try {
+    const path = join(dir, 'checks.db');
+    const old = new DatabaseSync(path);
+    old.exec(`CREATE TABLE checks (
+      id TEXT PRIMARY KEY, state TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      input_text TEXT, has_image INTEGER NOT NULL DEFAULT 0, result_json TEXT, status TEXT,
+      duration_ms INTEGER, metrics_json TEXT)`);
+    old.exec(
+      "INSERT INTO checks (id, state, created_at, updated_at) VALUES ('old', 'done', 't', 't')",
+    );
+    old.close();
+    const store = new SqliteJobStore(path);
+    store.create('new', { text: 'x' }, new Date(), 'key');
+    assert.equal(store.get('old')?.state, 'done');
+    assert.equal(store.findReusable('key', new Date(0)), undefined);
+    store.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('ponowne użycie: kopia przejmuje sygnały injection i rodzaje ukrytych danych, bez kosztu', async () => {
+  const done: VerifyResult[] = [];
+  const store = new SqliteJobStore(':memory:');
+  const runner = new JobRunner({
+    store,
+    concurrency: 1,
+    maxQueued: 10,
+    timeoutMs: 5000,
+    onDone: (_id, r) => done.push(r),
+    run: async (_input, { checkId }) => ({
+      ...okResponse(checkId, 'fałszywe'),
+      metrics: {
+        ...emptyMetrics(),
+        usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+        injectionSignals: [{ source: 'user', pattern: 'ignore_instructions' }],
+        piiMasked: ['EMAIL'],
+      },
+    }),
+    reuse: { key: () => 'k', ttlMs: 3600_000, isReusable: () => true },
+  });
+  runner.enqueue({ text: 'x' });
+  await tick();
+  runner.enqueue({ text: 'x' });
+  await tick();
+  const copy = done[1]?.metrics;
+  assert.equal(copy?.reused, true);
+  assert.equal(copy?.usage, null);
+  assert.deepEqual(copy?.injectionSignals, [{ source: 'user', pattern: 'ignore_instructions' }]);
+  assert.deepEqual(copy?.piiMasked, ['EMAIL']);
 });

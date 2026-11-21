@@ -19,6 +19,16 @@ const signature = (r) =>
       )
       .toSorted((a, b) => a.localeCompare(b)),
   ]);
+/** Publikacje, na których opiera się werdykt (role inne niż kontekst). */
+const basis = (r) =>
+  new Set(
+    r.claims.flatMap((c) =>
+      (c.evidenceUse ?? [])
+        .filter((u) => u.stance !== 'context')
+        .map((u) => r.evidence.find((e) => e.id === u.id)?.url)
+        .filter(Boolean),
+    ),
+  );
 const ratio = (hits, total) =>
   total ? hits + '/' + total + ' (' + ((100 * hits) / total).toFixed(1) + '%)' : '—';
 export function score(rows) {
@@ -127,21 +137,26 @@ export function score(rows) {
     const visible = x.reply.split('Pełny wynik')[0];
     const urls = new Set(visible.match(/https?:\/\/\S+/g) ?? []);
     const sources = new Set(d?.claims?.flatMap((c) => cited(d, c).map((e) => e.url)));
+    // Pełny wynik musi być identyczny (werdykty i wszystkie źródła). Skrócona odpowiedź WhatsApp
+    // musi pokazać werdykty i każdą publikację, na której WWW opiera werdykt, i nic spoza wyniku.
+    // Materiały kontekstowe zostają w pełnym wyniku, do którego wiadomość linkuje.
     tally(
       'Channel consistency',
       d?.status === 'ok' &&
         x.response.status === 'ok' &&
         signature(d) === signature(x.response) &&
         d.claims.every((c) => visible.includes(c.verdict.toUpperCase())) &&
-        urls.size === sources.size &&
-        [...sources].every((u) => urls.has(u)),
+        [...basis(d)].every((u) => urls.has(u)) &&
+        [...urls].every((u) => sources.has(u)),
     );
   }
-  const times = direct
+  // Kopie gotowego wyniku nie wołają modelu: nie wchodzą do czasu ani kosztu.
+  const fresh = direct.filter((x) => !x.metrics.reused);
+  const times = fresh
     .filter((x) => !gold.get(x.id).image && !gold.get(x.id).fault)
     .map((x) => x.elapsedMs / 1000)
     .toSorted((a, b) => a - b);
-  const costs = direct.filter((x) => x.costUsd !== null);
+  const costs = fresh.filter((x) => x.costUsd !== null);
   return {
     checks: direct.length,
     'Macro-F1': labels.size
@@ -161,6 +176,7 @@ export function score(rows) {
       ? ((100 * costs.reduce((s, r) => s + r.costUsd, 0)) / costs.length).toFixed(3)
       : '—',
     metered: costs.length,
+    reused: direct.length - fresh.length,
   };
 }
 if (import.meta.main)

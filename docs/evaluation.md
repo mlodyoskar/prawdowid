@@ -228,3 +228,40 @@ Dla każdego z pięciu werdyktów liczymy F1 = 2 × TP / (2 × TP + FP + FN). TP
 | Nie podlega weryfikacji      |   8 |   0 |   1 | 0,941 |
 
 Największy wpływ na wynik ma poprawne rozpoznanie materiału przedstawionego w mylącym kontekście. W B3 i F3 planer znalazł październikowy alert, ale we wszystkich sześciu odpowiedziach wstrzymał się od werdyktu. Wydzielanie tezy powinno zachować informację, że użytkownik przedstawia konkretny komunikat jako aktualny. Wtedy sędzia może porównać datę i treść oryginału z udostępnionym materiałem. Jeżeli użytkownik pyta o nowe zdarzenie, sama obecność podobnego starego alertu nie wystarcza do rozstrzygnięcia. Zmianę warto ocenić na nowych parach przypadków obejmujących oba rodzaje pytań.
+
+## Spójność kanałów i powtórzeń
+
+Wymóg jury: ten sam werdykt i te same dowody dla tego samego zgłoszenia w WWW i WhatsApp oraz przy powtórzeniu (miernik 100%). Opis rozwiązania: [docs/agent.md](agent.md#spójność-kanałów-i-powtórzeń).
+
+### Skąd brał się rozrzut
+
+Do analizy dodałem tymczasowy zapis każdego wywołania modelu: etap, skrót wejścia i wyjście. Analizowane przebiegi z zapisem: [obecne ustawienia](../evals/diagnostics/consistency-baseline-trace.jsonl) · [temperatura 0 i bez budżetów zegarowych](../evals/diagnostics/consistency-t0-nobudget-trace.jsonl).
+
+- **Kanał nie zmienia wejścia.** Model dostał z WWW i z WhatsApp bajtowo ten sam tekst (24/24 par).
+- **W przebiegach PR #7 agent dawał w obu kanałach prawie ten sam wynik.** Werdykt zgadzał się w 17/18 par, źródła-podstawy w 17/18, wszystkie źródła w 12/18. Adapter WhatsApp pokazywał tylko pierwsze źródło z listy sędziego, więc ścisła miara wynosiła 0/18. Wszystkie swoje źródła pokazała 1/18 odpowiedzi.
+- **Rozrzut zaczyna się w planie zapytań.** Model za każdym razem formułuje zapytania trochę inaczej, na przykład zmienia szyk słów albo dopisuje liczbę. Inne zapytania dają inne fragmenty korpusu, a sędzia dostaje inny materiał. Przy identycznym materiale sędzia zmienił werdykt w 1 z 28 par.
+- **Temperatura 0 nie wystarcza.** Na 12 najmniej stabilnych przypadkach (4 powtórzenia, tylko udane sprawdzenia) temperatura 0 bez budżetów zegarowych zmniejszyła odsetek par z innym werdyktem z 20% do 14%. W pełni identyczny wynik pozostał na 48%, a plan zapytań był stabilny w 0/13 przypadków w obu wariantach. p90 czasu wzrósł z 19 s do 27 s, dlatego budżety zegarowe zostają.
+
+### Przed i po
+
+„Przed” to przebiegi PR #7 po nadaniu priorytetu Google Fact Check (`22-15-02`, `22-15-21`), policzone obecną miarą. „Po” to temperatura 0, jeden wynik na zgłoszenie i nowy adapter WhatsApp (`23-13-10`). Oba kanały przechodzą w ewaluacji przez produkcyjny `JobRunner`. Opcja `--no-reuse` wyłącza ponowne użycie wyniku, a `--temperature none` wyłącza temperaturę 0.
+
+| Miara                            |         Przed |            Po |
+| -------------------------------- | ------------: | ------------: |
+| Spójność trzech powtórzeń        | 30/48 (62,5%) |  48/48 (100%) |
+| Spójność kanałów (miara obecna)  |  9/18 (50,0%) |  18/18 (100%) |
+| Spójność kanałów (miara z PR #7) |   0/18 (0,0%) |             — |
+| Macro-F1, rozwojowe              |         0,684 |         0,687 |
+| Macro-F1, odłożone               |         0,590 |         0,619 |
+| Odporność na injection           | 14/15 (93,3%) | 12/15 (80,0%) |
+| Maskowanie danych                |           3/3 |           3/3 |
+| Awarie jako status               |         12/12 |         12/12 |
+| Mediana czasu tekst/URL (s)      |         11,74 |   10,72/11,67 |
+| USD / 100 sprawdzeń z wywołaniem |         0,245 |   0,215/0,210 |
+| Kopie bez wywołania modelu       |             0 |        80/144 |
+
+Miara spójności kanałów wymaga identycznego pełnego wyniku (werdykty i wszystkie adresy). Odpowiedź WhatsApp musi pokazać werdykty i każdą publikację-podstawę z wyniku WWW, a żadnego adresu spoza wyniku. Miara z PR #7 wymagała w WhatsApp wszystkich adresów, także kontekstu. Adapter celowo przenosi kontekst do pełnego wyniku, do którego wiadomość linkuje.
+
+**Jak czytać „po”.** Z ponownym użyciem wyniku trzy powtórzenia nie są niezależnymi próbami: drugie i trzecie to kopie pierwszego. Miary jakości mają więc faktycznie jedną próbę na przypadek, a pojedynczy błąd liczy się potrójnie. Tak działa spadek odporności na injection: E3 w jedynym świeżym sprawdzeniu wstrzymał się zamiast potwierdzić, a kopie powtórzyły ten wynik (przed zmianą 2/3). To koszt rozwiązania: utrwalony zostaje także błędny werdykt, najdłużej na `CHECK_REUSE_HOURS`. Do porównań jakości modeli lub promptów uruchamiaj ewaluację z `--no-reuse`.
+
+Nieobjęte gwarancją: parafrazy, czyli inne zgłoszenie, oraz zrzuty ekranu między kanałami, bo Meta przekompresowuje zdjęcie. Surowe wyniki: [rozwój](../evals/runs/2026-11-21T23-13-10.284Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [zbiór odłożony](../evals/runs/2026-11-21T23-13-10.284Z-plan-held-out-anthropic_claude-haiku-5.5.jsonl).

@@ -2,7 +2,7 @@
 
 Odłożone decyzje dotyczące agenta weryfikującego. Wracamy do nich po pierwszych ewaluacjach.
 
-- [ ] **Spójność kanałów i powtórzeń (miernik: 100%).** Jak zagwarantować ten sam werdykt i te same dowody dla tego samego pytania w obu kanałach i przy powtórnym uruchomieniu. Warianty: cache całego wyniku po znormalizowanym twierdzeniu, cache samego wyszukiwania, brak cache i niska temperatura.
+- [x] **Spójność kanałów i powtórzeń (miernik: 100%).** Jeden wynik na znormalizowane zgłoszenie, temperatura 0, WhatsApp pokazuje publikacje-podstawy: [docs/agent.md](docs/agent.md#spójność-kanałów-i-powtórzeń). Otwarte: parafrazy i zrzuty ekranu między kanałami.
 - [ ] **Sprawa analityka i deduplikacja podobnych zgłoszeń** (scenariusz H, makieta 5). Poza pierwszą wersją. Wymagania wspominają o powiadomieniu moderatora także poza funkcjami premiowanymi: patrz [docs/open-questions.md](docs/open-questions.md).
 - [ ] **EUvsDisinfo jako kontekst lub ostrzeżenie** (scenariusz I). Poza pierwszą wersją.
 - [ ] **Źródła obcojęzyczne z tłumaczeniem cytatu.** Poza pierwszą wersją.

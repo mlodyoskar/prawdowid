@@ -81,6 +81,25 @@ export class GraphClient {
     return res.ok ? { ok: true, value: undefined } : res;
   }
 
+  /**
+   * Oznacza wiadomość użytkownika jako przeczytaną i pokazuje „pisze…”. To nie jest
+   * wiadomość (Meta odpowiada `{ success: true }`), więc nie zużywa puli wiadomości
+   * serwisowych. Wskaźnik znika po wysłaniu odpowiedzi albo po 25 s.
+   */
+  async markReadTyping(messageId: string): Promise<GraphResult<void>> {
+    const res = await this.#request(`${this.#base}/${this.#cfg.phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        status: 'read',
+        message_id: messageId,
+        typing_indicator: { type: 'text' },
+      }),
+    });
+    return res.ok ? { ok: true, value: undefined } : res;
+  }
+
   /** Pobiera obraz z wiadomości: najpierw adres media, potem bajty (oba z tokenem). */
   async downloadImage(mediaId: string): Promise<GraphResult<ImageInput>> {
     const meta = await this.#request(`${this.#base}/${encodeURIComponent(mediaId)}`);

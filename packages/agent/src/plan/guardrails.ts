@@ -22,6 +22,9 @@ export type GuardedClaim = {
 
 type Kept = EvidenceUse & { evidence: Evidence; direct: boolean };
 
+/** Materiały z tego samego tematu, ale o innej sprawie: pokazujemy najwyżej tyle na twierdzenie. */
+const MAX_RELATED_CONTEXT = 2;
+
 /**
  * Reguły, których model nie może obejść (opis: docs/agent.md).
  * Werdykt rozstrzygający musi mieć oparcie w materiale, który dotyczy twierdzenia wprost
@@ -65,6 +68,9 @@ export function applyGuardrails(
       continue;
     }
     const direct = item.relation === 'direct';
+    if (!direct && [...kept.values()].filter((k) => !k.direct).length >= MAX_RELATED_CONTEXT) {
+      continue;
+    }
     kept.set(item.id, {
       id: item.id,
       // Materiał z tego samego tematu, ale o innej sprawie, może tylko uzupełniać kontekst.

@@ -299,3 +299,24 @@ test('siła podstawy: materiały są, ale nie rozstrzygają → przesłanka mów
   });
   assert.deepEqual(s.reasons, ['Materiały dotyczące twierdzenia nie pozwalają go rozstrzygnąć.']);
 });
+
+test('reguły: materiałów tylko z tego samego tematu trafia do wyniku najwyżej dwa', () => {
+  const docs = [1, 2, 3, 4].map((n) => doc({ id: `doc_${n}`, url: `https://www.gov.pl/${n}` }));
+  const g = applyGuardrails(
+    judgement({
+      verdict: 'brak wystarczających dowodów',
+      items: docs.map((d) => ({
+        id: d.id,
+        relation: 'related' as const,
+        stance: 'context' as const,
+        quote: 'spotkanie ministrów spraw zagranicznych NATO',
+        addressesModel: false,
+      })),
+    }),
+    available(...docs),
+  );
+  assert.deepEqual(
+    g.evidenceUse.map((u) => u.id),
+    ['doc_1', 'doc_2'],
+  );
+});

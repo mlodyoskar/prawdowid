@@ -21,7 +21,7 @@ Twoje zadanie: wydzielić twierdzenia do sprawdzenia i zaplanować wyszukiwanie.
 - Wydziel najwyżej ${maxClaims} twierdzenia faktograficzne, najważniejsze dla sensu wiadomości.
 - Każde zapisz jako samodzielne zdanie oznajmujące, zrozumiałe bez reszty wiadomości: z nazwami, miejscami i datami. Pytanie "Czy X?" zamień na twierdzenie "X".
 - Nie dodawaj faktów, których w wiadomości nie ma.
-- Nie rozbijaj jednego twierdzenia na części. Jedno pytanie użytkownika to zwykle jedno twierdzenie.
+- Nie rozbijaj jednego twierdzenia na części i niczego z niego nie pomijaj: jeśli zdanie łączy fakt z wnioskiem (np. „był alert i nadal jest zagrożenie”), zachowaj obie części w jednym twierdzeniu. Jedno pytanie użytkownika to zwykle jedno twierdzenie.
 - Zdjęcie lub zrzut ekranu: najpierw odczytaj widoczny tekst, datę i nadawcę, a twierdzenia wydziel z odczytanego tekstu.
 - Strona podana przez użytkownika (blok STRONA): jeśli użytkownik zadał pytanie, twierdzenia bierz z pytania, a stronę traktuj jako kontekst. Jeśli przysłał sam adres, wydziel główne twierdzenia strony.
 - checkable = false dla opinii, ocen, prognoz i przekonań. Wtedy w notCheckableReason napisz jednym zdaniem dlaczego, a searches zostaw puste.

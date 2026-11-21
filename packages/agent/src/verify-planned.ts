@@ -270,6 +270,7 @@ export async function verifyPlanned(
 
   const search = async (claim: ClaimState, requests: readonly SearchRequest[]) => {
     const results = await Promise.all(requests.map((r) => runSearch(r)));
+    const candidates = new Map(claim.evidence);
     for (const [i, result] of results.entries()) {
       const request = requests[i];
       if (!request) continue;
@@ -278,15 +279,28 @@ export async function verifyPlanned(
         continue;
       }
       for (const hit of result.items.slice(0, MAX_RESULTS_PER_SEARCH)) {
-        if (claim.evidence.size >= MAX_EVIDENCE_PER_CLAIM) break;
-        const e = registry.register(hit);
-        if (!noted.has(e.id)) {
-          noted.add(e.id);
-          registry.noteInjection(e.id, `${e.title}\n${e.excerpt}`);
-        }
-        claim.evidence.set(e.id, e);
+        const evidence = registry.register(hit);
+        candidates.set(evidence.id, evidence);
       }
     }
+    // Wspólny limit stosujemy po zebraniu wyników ze wszystkich zapytań.
+    // W obrębie źródła zachowujemy ranking wyszukiwania i kolejność zapytań.
+    const ranked = [...candidates.values()].toSorted(
+      (a, b) => Number(b.kind === 'factcheck') - Number(a.kind === 'factcheck'),
+    );
+    const limit = Math.max(MAX_EVIDENCE_PER_CLAIM, claim.evidence.size);
+    let added = false;
+    const selected = new Map<string, Evidence>();
+    for (const e of ranked.slice(0, limit)) {
+      if (!claim.evidence.has(e.id)) added = true;
+      if (!noted.has(e.id)) {
+        noted.add(e.id);
+        registry.noteInjection(e.id, `${e.title}\n${e.excerpt}`);
+      }
+      selected.set(e.id, e);
+    }
+    claim.evidence = selected;
+    return added;
   };
 
   const askJudge = (claim: ClaimState, evidence: readonly Evidence[]) =>
@@ -408,10 +422,8 @@ export async function verifyPlanned(
       (s) => !known.has(searchKey(s)),
     );
     if (fresh.length === 0) return;
-    const before = claim.evidence.size;
     claim.searches.push(...fresh);
-    await search(claim, fresh);
-    if (claim.evidence.size === before) return;
+    if (!(await search(claim, fresh))) return;
     refinedClaims++;
     await judge(claim);
   };

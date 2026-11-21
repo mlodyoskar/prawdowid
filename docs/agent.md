@@ -49,6 +49,8 @@ zgłoszenie
 
 Dwa wywołania modelu jedno po drugim w typowym przypadku, trzy przy doczytaniu, cztery przy rundzie poprawy.
 
+**Wybór dowodów w trybie plan.** Kod zbiera do sześciu trafień z każdego zapytania. Przy wyborze 12 fragmentów na twierdzenie pierwszeństwo mają wyniki Google Fact Check. Pozostałe miejsca zajmują fragmenty korpusu. W rundzie poprawy nowy fact-check może wyprzeć fragment korpusu. Sędzia sprawdza, czy dana publikacja dotyczy tego samego twierdzenia.
+
 **Doczytanie dokumentu.** Wyszukiwanie zwraca najwyżej dwa fragmenty z dokumentu, a o tym, które, decyduje dopasowanie słów, nie to, gdzie jest odpowiedź. Gdy sędzia uzna dokument za dotyczący twierdzenia wprost, ale nie znajdzie w nim rozstrzygnięcia, kod dociąga pozostałe fragmenty (do 12 z najwyżej 2 dokumentów) i sędzia ocenia jeszcze raz, już tylko na tych dokumentach. Jeśli druga ocena też nie rozstrzyga, zostaje pierwsza. Doczytanie startuje tylko przed upływem 16 s od początku sprawdzenia (`deepenBudgetMs`).
 
 ### Czym się różnią
@@ -110,6 +112,18 @@ Typy są w [packages/contracts](../packages/contracts/src/index.ts). Pola dodane
 | `unchecked`                  | Twierdzenia niesprawdzone z powodów technicznych                                    | „Awaria – to nie werdykt”    |
 | `searched`                   | Źródła, w których faktycznie szukano                                                | „Gdzie sprawdziliśmy”        |
 | `mode`                       | Tryb, który wyprodukował wynik                                                      | brak (do ewaluacji)          |
+
+| `reusedFrom` | Wynik skopiowany z wcześniejszego sprawdzenia tego samego zgłoszenia (czas tamtego) | „Zapis sprawdzenia” |
+
+## Spójność kanałów i powtórzeń
+
+Wymóg: to samo zgłoszenie daje ten sam werdykt i te same dowody w WWW i WhatsApp oraz przy powtórzeniu. Pomiar (opis w [docs/evaluation.md](evaluation.md#spójność-kanałów-i-powtórzeń)) pokazał, że kanał nie zmienia wejścia: model dostaje z obu ten sam tekst. Rozrzut bierze się z planu zapytań, który model formułuje za każdym razem trochę inaczej, także przy temperaturze 0. Inne zapytania dają inne fragmenty korpusu, a sędzia inny materiał. Dlatego:
+
+- **Jeden wynik na zgłoszenie** ([apps/api/src/reuse.ts](../apps/api/src/reuse.ts), `JobRunner`). Klucz to skrót zamaskowanego tekstu po normalizacji (NFC, małe litery, zwinięte białe znaki), skrót bajtów obrazu oraz konfiguracji: tryb, model, sędzia, temperatura, wersja korpusu. Przez `CHECK_REUSE_HOURS` (domyślnie 24 h) to samo zgłoszenie dostaje kopię wyniku z własnym numerem i polem `reusedFrom`. Zgłoszenie wysłane w trakcie trwającego sprawdzenia do niego dołącza. Kopiujemy tylko pełne wyniki `ok`: bez awarii źródeł, niesprawdzonych tez, nieodczytanych stron i przerwanego doczytania. Po błędzie każde czekające zgłoszenie jest sprawdzane samodzielnie. Kopia żyje w tabeli `checks`, więc znika z retencją albo po usunięciu sesji. Numeru pierwotnego sprawdzenia nie ujawniamy.
+- **Temperatura 0** domyślnie (`LLM_TEMPERATURE`). Zmniejsza rozrzut przy pierwszym sprawdzeniu i parafrazach, ale go nie usuwa.
+- **Kolejność dowodów:** najpierw materiały wspierające albo obalające, potem kontekst. WhatsApp pokazuje wszystkie publikacje-podstawy (do trzech na tezę), te same co WWW.
+
+Granice: parafraza to inne zgłoszenie i może dostać inny wynik. Zdjęcie wysłane przez WhatsApp jest przekompresowane przez Meta, więc ma inne bajty niż ten sam plik wgrany na stronę: dla zrzutów ekranu spójność między kanałami nie jest gwarantowana. Utrwalony zostaje także błędny werdykt, najdłużej na czas ważności. Łączenie zgłoszeń w toku działa w jednym procesie, czyli przy jednej replice API.
 
 ## Pierwszy test na żywo (2026-11-21)
 

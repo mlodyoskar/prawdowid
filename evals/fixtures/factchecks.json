@@ -1,0 +1,44 @@
+{
+  "Wrocław darmowa komunikacja": {
+    "ok": true,
+    "items": [
+      {
+        "kind": "factcheck",
+        "title": "Darmowa komunikacja. Jaką kwotę musiałby dołożyć Wrocław?",
+        "publisher": "Demagog",
+        "url": "https://demagog.org.pl/wypowiedzi/darmowa-komunikacja-jaka-kwote-musialby-dolozyc-wroclaw/",
+        "publishedAt": "2024-04-05T00:00:00Z",
+        "fetchedAt": null,
+        "excerpt": "To rezygnacja z przychodów z tytułu biletów, a to jest w 7 mld budżecie naprawdę skromna kwota - 200 mln zł około. Natomiast MPK [we Wrocławiu - przyp. Demagog] i tak nas kosztuje bodajże ok. 700 mln zł. (autor twierdzenia: Łukasz Kasztelowicz)",
+        "rating": "Częściowa prawda",
+        "sourceType": "secondary"
+      },
+      {
+        "kind": "factcheck",
+        "title": "Darmowa komunikacja dla 65-latków tylko we Wrocławiu ...",
+        "publisher": "Demagog",
+        "url": "https://demagog.org.pl/wypowiedzi/darmowa-komunikacja-dla-65-latkow-tylko-we-wroclawiu-sprawdzamy/",
+        "publishedAt": "2024-03-12T00:00:00Z",
+        "fetchedAt": null,
+        "excerpt": "Takie najważniejsze moje osiągnięcia w poprzedniej kadencji rady miejskiej to przede wszystkim doprowadzenie do tego, że nie 70, tylko 65-latkowie we Wrocławiu, jeżdżą komunikacją miejską bezpłatnie. Ja zgłosiłem ten pomysł, on został przyjęty przez prezydenta i przez radnych i dziś jesteśmy jedynym miastem z takimi ulgami. W innych miastach jest 70 lat, u nas 65-latkowie jeżdżą komunikacją miejską bezpłatnie. (autor twierdzenia: Dominik Kłosowski)",
+        "rating": "Fałsz",
+        "sourceType": "secondary"
+      },
+      {
+        "kind": "factcheck",
+        "title": "Wypowiedzi - weryfikujemy słowa polityków i osób publicznych",
+        "publisher": "Wypowiedzi - weryfikujemy słowa polityków i osób publicznych",
+        "url": "https://demagog.org.pl/wypowiedzi/czy-we-wroclawiu-sa-darmowe-bilety-komunikacyjne/",
+        "publishedAt": "2018-09-25T00:00:00Z",
+        "fetchedAt": null,
+        "excerpt": "To Wrocław, jako jedno z pierwszych dużych miast w Polsce, wprowadził darmowy bilet komunikacyjny dla uczniów. (autor twierdzenia: Jacek Sutryk)",
+        "rating": "Prawda",
+        "sourceType": "secondary"
+      }
+    ]
+  },
+  "PAP usunęła depeszę": {
+    "ok": true,
+    "items": []
+  }
+}

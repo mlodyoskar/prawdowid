@@ -10,7 +10,8 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "test": "node --test",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "eval": "node --env-file-if-exists=.env evals/run.mjs"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

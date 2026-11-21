@@ -21,6 +21,8 @@ export type AppDeps = {
   clientKey: (c: Context) => string;
   rateLimit: { postPerMinute: number; getPerMinute: number };
   onRateLimited?: (event: { route: string; client: string }) => void;
+  /** Kanał WhatsApp (opcjonalny): trasy webhooka pod `/webhooks/whatsapp`. */
+  whatsapp?: { routes(): Hono } | undefined;
   /** Wyłącza logger w testach. */
   quiet?: boolean;
 };
@@ -75,8 +77,18 @@ export function createApp(deps: AppDeps) {
   );
 
   app.get('/health', (c) =>
-    c.json({ ok: true, llm: deps.llmConfigured, sources: deps.health(), queue: deps.runner.stats }),
+    c.json({
+      ok: true,
+      llm: deps.llmConfigured,
+      sources: deps.health(),
+      queue: deps.runner.stats,
+      channels: { web: true, whatsapp: Boolean(deps.whatsapp) },
+    }),
   );
+
+  // Webhook od Meta: bez CORS i bez limitu per IP (wszystkie wiadomości przychodzą z serwerów Meta);
+  // kanał weryfikuje podpis i limituje per nadawca.
+  if (deps.whatsapp) app.route('/webhooks/whatsapp', deps.whatsapp.routes());
 
   app.post(
     '/api/checks',

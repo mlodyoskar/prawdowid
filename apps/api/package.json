@@ -1,0 +1,15 @@
+{
+  "name": "@prawdowid/api",
+  "private": true,
+  "description": "HTTP API: walidacja, zapis przebiegu sprawdzenia, limity; woła verify()",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@prawdowid/agent": "workspace:*",
+    "@prawdowid/contracts": "workspace:*"
+  }
+}

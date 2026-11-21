@@ -1,0 +1,15 @@
+{
+  "name": "@prawdowid/sources",
+  "private": true,
+  "description": "Warstwa danych: korpus (SQLite FTS) i scraper, klient Google Fact Check, pobieranie URL-i",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@prawdowid/contracts": "workspace:*"
+  }
+}

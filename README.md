@@ -86,6 +86,22 @@ Design system jest w [apps/web/src/ui](apps/web/src/ui), a jego katalog pod adre
 
 Zasady z makiet: werdykt zawsze ma ikonę i słowo; komunikat systemowy (awaria, limit) nigdy nie wygląda jak werdykt; czerwony akcent tylko w nagłówku.
 
+## Wdrożenie (Railway)
+
+Dwie usługi z tego samego repo, obie budowane z katalogu głównego (pakiety workspace muszą być widoczne). Ustawienia budowania i startu są w plikach, w Railway każda usługa wskazuje swój plik w _Settings → Config-as-code_:
+
+| Usługa           | Plik konfiguracji        | Co robi                                                                                 |
+| ---------------- | ------------------------ | --------------------------------------------------------------------------------------- |
+| `@prawdowid/api` | `/apps/api/railway.json` | Build wypełnia korpus (`seed`), start `pnpm --filter @prawdowid/api start`              |
+| `@prawdowid/web` | `/apps/web/railway.json` | Build Vite, serwowanie przez Caddy z nagłówkami bezpieczeństwa z [Caddyfile](Caddyfile) |
+
+Zmienne ustawia się w Railway, nie w plikach:
+
+- **API:** `OPENROUTER_API_KEY`, `LLM_MODEL`, `RESEARCH_MODE=plan`, `REQUIRE_LLM=true`, `GOOGLE_FACTCHECK_API_KEY`, `WEB_ORIGIN` (dokładny adres frontendu, z `https://`, bez `/` na końcu), `TRUST_PROXY=true`, `CHECKS_DB_PATH=/data/checks.db` (wolumen pod `/data`; korpus zostaje w obrazie), ceny `LLM_PRICE_*_PER_MTOK`.
+- **Web:** `VITE_API_URL` (adres API z `https://`, wbudowywany przy buildzie), `RAILPACK_SPA_OUTPUT_DIR=apps/web/dist`.
+
+API działa w jednej replice: SQLite, kolejka i limity żądań są w pamięci procesu. Wdrożenie przerywa trwające sprawdzenia (kończą się błędem), więc w czasie testów nie wypychaj zmian na `main`.
+
 ## Praca z repo
 
 | Polecenie                           | Co robi                                         |

@@ -1,0 +1,51 @@
+# Serwer statyczny frontendu (apps/web) na Railway.
+# Railpack używa tego pliku zamiast domyślnego szablonu dla aplikacji SPA:
+# https://github.com/railwayapp/railpack/blob/v0.43.0/core/providers/node/Caddyfile.template
+# {{.DIST_DIR}} i {{.IndexFallback}} wypełnia Railpack przy budowaniu, {$VITE_API_URL} Caddy przy starcie.
+{
+	admin off
+	persist_config off
+	auto_https off
+
+	log {
+		format json
+	}
+
+	servers {
+		trusted_proxies static private_ranges 100.0.0.0/8 # proxy Railway
+	}
+}
+
+:{$PORT:80} {
+	log {
+		format json
+	}
+
+	respond /health 200
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# connect-src: jedyny zewnętrzny adres, z którym rozmawia strona, to API.
+		# img-src blob:/data: dla podglądu wgrywanego zrzutu ekranu; style inline używa Radix.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' {$VITE_API_URL}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		-Server
+	}
+
+	root * {{.DIST_DIR}}
+
+	file_server {
+		hide .git
+		hide .env*
+	}
+
+	encode {
+		gzip
+		zstd
+	}
+
+	try_files {path} {path}.html {path}/index.html{{if .IndexFallback}} /index.html{{end}}
+}

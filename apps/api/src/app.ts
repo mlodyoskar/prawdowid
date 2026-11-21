@@ -5,6 +5,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { secureHeaders } from 'hono/secure-headers';
 
 import type { JobRunner, JobStore } from './jobs.ts';
 import { FixedWindowLimiter, hashClientKey } from './rate-limit.ts';
@@ -56,6 +57,13 @@ export function createApp(deps: AppDeps) {
   const getLimiter = new FixedWindowLimiter({ limit: deps.rateLimit.getPerMinute });
 
   if (!deps.quiet) app.use(logger());
+  // API zwraca tylko JSON: blokujemy osadzanie, sniffing i wysyłanie referera; HSTS na HTTPS.
+  app.use(
+    secureHeaders({
+      contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+      xFrameOptions: 'DENY',
+    }),
+  );
   app.use(
     '/api/*',
     cors({

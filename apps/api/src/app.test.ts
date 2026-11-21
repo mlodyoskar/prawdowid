@@ -113,3 +113,13 @@ test('limit żądań: 429 z Retry-After po przekroczeniu, osobno dla każdego kl
   assert.equal(events.length, 1);
   assert.notEqual(events[0]?.client, '1.1.1.1'); // w logu tylko skrót IP
 });
+
+test('nagłówki bezpieczeństwa i CORS dla adresu frontendu', async () => {
+  const { app } = setup();
+  const res = await app.request('/api/checks/c1', { headers: { origin: 'http://localhost:5173' } });
+  assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(res.headers.get('x-frame-options'), 'DENY');
+  assert.match(res.headers.get('strict-transport-security') ?? '', /max-age=/);
+  assert.match(res.headers.get('content-security-policy') ?? '', /default-src 'none'/);
+  assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+});

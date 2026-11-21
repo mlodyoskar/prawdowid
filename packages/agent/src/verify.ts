@@ -61,6 +61,8 @@ export type VerifyMetrics = {
   injectionSignals: InjectionSignal[];
   piiMasked: PiiKind[];
   pages: { fetched: number; failed: number };
+  /** Koszt wywołań modelu w USD. Uzupełnia go wywołujący, gdy zna cennik modelu. */
+  costUsd?: number;
 };
 
 export function emptyMetrics(): VerifyMetrics {

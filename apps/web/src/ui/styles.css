@@ -1,0 +1,146 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+/* Latin + Latin Extended (Polish diacritics) only; the browser picks by unicode-range. */
+@import '@fontsource/open-sans/latin-400.css';
+@import '@fontsource/open-sans/latin-ext-400.css';
+@import '@fontsource/open-sans/latin-600.css';
+@import '@fontsource/open-sans/latin-ext-600.css';
+@import '@fontsource/open-sans/latin-700.css';
+@import '@fontsource/open-sans/latin-ext-700.css';
+@import './tokens.css';
+
+/*
+ * Tokens → Tailwind. `inline` makes utilities point at the variables, so switching themes
+ * needs no `dark:` variants: bg-surface, text-ink-muted, border-line-strong, text-verdict-false…
+ * The second group maps shadcn/ui's semantic names onto the same tokens.
+ */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-accent-red: var(--accent-red);
+  --color-focus: var(--focus);
+  --color-verdict-true: var(--verdict-true);
+  --color-verdict-true-bg: var(--verdict-true-bg);
+  --color-verdict-false: var(--verdict-false);
+  --color-verdict-false-bg: var(--verdict-false-bg);
+  --color-verdict-misleading: var(--verdict-misleading);
+  --color-verdict-misleading-bg: var(--verdict-misleading-bg);
+  --color-verdict-insufficient: var(--verdict-insufficient);
+  --color-verdict-insufficient-bg: var(--verdict-insufficient-bg);
+  --color-verdict-unverifiable: var(--verdict-unverifiable);
+  --color-notice: var(--notice);
+  --color-notice-bg: var(--notice-bg);
+  --color-caution: var(--caution);
+  --color-caution-bg: var(--caution-bg);
+
+  /* shadcn/ui aliases */
+  --color-background: var(--surface);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface-raised);
+  --color-card-foreground: var(--ink);
+  --color-primary-foreground: var(--on-primary);
+  --color-secondary: var(--surface-alt);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface-alt);
+  --color-muted-foreground: var(--ink-muted);
+  --color-accent: var(--primary-soft);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--verdict-false);
+  --color-border: var(--line);
+  --color-input: var(--line-strong);
+  --color-ring: var(--focus);
+
+  --shadow-bar: var(--pw-shadow-bar);
+}
+
+@theme {
+  --font-sans: 'Open Sans', 'Segoe UI', Roboto, system-ui, sans-serif;
+
+  /* Type scale: text-display, text-title-1 … each sets size, line height and weight */
+  --text-display: 30px;
+  --text-display--line-height: 38px;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.01em;
+  --text-title-1: 24px;
+  --text-title-1--line-height: 32px;
+  --text-title-1--font-weight: 700;
+  --text-title-2: 20px;
+  --text-title-2--line-height: 28px;
+  --text-title-2--font-weight: 600;
+  --text-title-3: 18px;
+  --text-title-3--line-height: 26px;
+  --text-title-3--font-weight: 600;
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 28px;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-label: 14px;
+  --text-label--line-height: 20px;
+  --text-label--font-weight: 600;
+  --text-caption: 14px;
+  --text-caption--line-height: 20px;
+  --text-eyebrow: 13px;
+  --text-eyebrow--line-height: 18px;
+  --text-eyebrow--font-weight: 600;
+  --text-eyebrow--letter-spacing: 0.04em;
+
+  /* Radii: xs for verdict badges, sm for buttons/fields/cards, lg only for sheets */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 16px;
+
+  /* Sizes: min-h-touch, h-appbar */
+  --spacing-touch: 48px;
+  --spacing-appbar: 56px;
+}
+
+@layer base {
+  html {
+    background: var(--surface);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  /* One focus style for the whole app: 3px solid, 2px gap in the background color. */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--primary-soft);
+    color: var(--ink);
+  }
+}
+
+@layer components {
+  /* In-text link: always underlined, primary. */
+  .pw-link {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .pw-link:hover {
+    color: var(--primary-hover);
+  }
+}

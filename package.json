@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p . && pnpm -r typecheck",
+    "build": "pnpm -r --if-present build",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",

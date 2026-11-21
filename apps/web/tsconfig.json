@@ -2,9 +2,14 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["es2025", "dom", "dom.iterable"],
-    "types": [],
+    "types": ["vite/client"],
     "module": "esnext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }

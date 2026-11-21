@@ -12,5 +12,7 @@ export default defineConfig({
   rules: {
     // Nowy JSX transform (React 17+) nie wymaga importu React.
     'react/react-in-jsx-scope': 'off',
+    // Side-effect imports of stylesheets are how Vite loads CSS.
+    'import/no-unassigned-import': ['warn', { allow: ['**/*.css'] }],
   },
 });

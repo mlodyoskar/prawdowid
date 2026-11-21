@@ -98,6 +98,7 @@ function setup(reuse = true) {
         replies.push(body);
         return { ok: true, value: undefined };
       },
+      markReadTyping: async () => ({ ok: true, value: undefined }),
       downloadImage: async () => ({ ok: false, error: 'unused' }),
     },
   });

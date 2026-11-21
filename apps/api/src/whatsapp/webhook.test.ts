@@ -14,9 +14,14 @@ const PHONE = '48500100200';
 type Sent = { to: string; body: string };
 
 function setup(
-  over: Partial<WhatsAppChannelDeps> & { sendFails?: boolean; enqueueNull?: boolean } = {},
+  over: Partial<WhatsAppChannelDeps> & {
+    sendFails?: boolean;
+    enqueueNull?: boolean;
+    typingFails?: boolean;
+  } = {},
 ) {
   const sent: Sent[] = [];
+  const typing: string[] = [];
   const enqueued: CheckRequest[] = [];
   const deleted: string[] = [];
   const logs: Array<{ event: string; data: Record<string, unknown> }> = [];
@@ -27,11 +32,16 @@ function setup(
     webOrigin: 'https://prawdowid.example/',
     llmConfigured: true,
     ratePerMinute: 100,
+    typingRefreshMs: 0,
     log: (event, data = {}) => logs.push({ event, data }),
     graph: {
       sendText: async (to, body): Promise<GraphResult<void>> => {
         sent.push({ to, body });
         return over.sendFails ? { ok: false, error: 'http_500' } : { ok: true, value: undefined };
+      },
+      markReadTyping: async (id): Promise<GraphResult<void>> => {
+        typing.push(id);
+        return over.typingFails ? { ok: false, error: 'http_500' } : { ok: true, value: undefined };
       },
       downloadImage: async () => ({
         ok: true,
@@ -68,7 +78,7 @@ function setup(
     runner: { stats: { queued: 0, running: 0 }, enqueue: () => null, delete: () => false },
     whatsapp: channel,
   };
-  return { channel, app: createApp(deps), sent, enqueued, deleted, logs };
+  return { channel, app: createApp(deps), sent, typing, enqueued, deleted, logs };
 }
 
 function payload(message: Record<string, unknown>) {
@@ -160,7 +170,7 @@ test('verifySignature odrzuca podpis innym sekretem', () => {
   assert.equal(verifySignature(raw, sign(raw), 'other'), false);
 });
 
-test('tekst → enqueue({ text }) i potwierdzenie; powtórzony webhook → jedno zgłoszenie', async () => {
+test('tekst → enqueue({ text }) i „przeczytano, pisze…” zamiast wiadomości; powtórzony webhook → jedno zgłoszenie', async () => {
   const ctx = setup();
   const body = payload({
     id: 'w1',
@@ -170,7 +180,9 @@ test('tekst → enqueue({ text }) i potwierdzenie; powtórzony webhook → jedno
   assert.equal((await deliver(ctx, body)).status, 200);
   await deliver(ctx, body);
   assert.deepEqual(ctx.enqueued, [{ text: 'Czy od grudnia wraca pobór?' }]);
-  assert.deepEqual(ctx.sent, [{ to: PHONE, body: MESSAGES.ack }]);
+  // Potwierdzenie to wskaźnik pisania, nie płatna wiadomość.
+  assert.deepEqual(ctx.typing, ['w1']);
+  assert.deepEqual(ctx.sent, []);
   // Numer telefonu nie trafia do logów.
   assert.ok(!JSON.stringify(ctx.logs).includes(PHONE));
 });
@@ -181,8 +193,8 @@ test('wynik sprawdzenia wraca do nadawcy z werdyktem, źródłem i linkiem do WW
   ctx.channel.onCheckDone('c1', okResponse('c1'));
   ctx.channel.onCheckDone('obcy', okResponse('obcy')); // sprawdzenie z WWW: brak odpowiedzi
   await ctx.channel.idle();
-  assert.equal(ctx.sent.length, 2);
-  const reply = ctx.sent[1]!;
+  assert.equal(ctx.sent.length, 1);
+  const reply = ctx.sent[0]!;
   assert.equal(reply.to, PHONE);
   assert.ok(reply.body.startsWith('❌ FAŁSZYWE'));
   assert.ok(reply.body.includes('https://www.gov.pl/web/obrona-narodowa/x'));
@@ -207,6 +219,7 @@ test('awaria pobrania zdjęcia → komunikat techniczny, bez zgłoszenia i bez w
         ctx.sent.push({ to, body });
         return { ok: true, value: undefined };
       },
+      markReadTyping: async () => ({ ok: true, value: undefined }),
       downloadImage: async () => ({ ok: false, error: 'http_404' }),
     },
   });
@@ -259,7 +272,7 @@ test('USUŃ kasuje sprawdzenia tego numeru i nie odsyła już ich wyników', asy
   assert.equal(ctx.sent.at(-1)?.body, MESSAGES.deleted(2));
   ctx.channel.onCheckDone('c1', okResponse('c1'));
   await ctx.channel.idle();
-  assert.equal(ctx.sent.length, 3);
+  assert.equal(ctx.sent.length, 1); // tylko potwierdzenie usunięcia
 });
 
 test('limit wiadomości na numer', async () => {
@@ -279,8 +292,32 @@ test('awaria wysyłki Graph API → log whatsapp_send_failed, przetwarzanie się
   assert.equal(res.status, 200);
   ctx.channel.onCheckDone('c1', okResponse('c1'));
   await ctx.channel.idle();
-  assert.equal(ctx.logs.filter((l) => l.event === 'whatsapp_send_failed').length, 2);
+  assert.equal(ctx.logs.filter((l) => l.event === 'whatsapp_send_failed').length, 1);
   assert.ok(!ctx.logs.some((l) => l.event === 'whatsapp_reply_sent'));
+});
+
+test('awaria „pisze…” → log whatsapp_typing_failed, wynik i tak wraca', async () => {
+  const ctx = setup({ typingFails: true, typingRefreshMs: 1 });
+  await deliver(ctx, payload({ id: 'w1', type: 'text', text: { body: 'Czy wraca pobór?' } }));
+  ctx.channel.onCheckDone('c1', okResponse('c1'));
+  await ctx.channel.idle();
+  assert.ok(ctx.logs.some((l) => l.event === 'whatsapp_typing_failed'));
+  assert.equal(ctx.typing.length, 1); // po awarii nie ponawiamy
+  assert.equal(ctx.sent.length, 1);
+  assert.ok(ctx.sent[0]!.body.startsWith('❌ FAŁSZYWE'));
+});
+
+test('„pisze…” jest ponawiane w trakcie sprawdzenia i gaśnie po odpowiedzi', async () => {
+  const ctx = setup({ typingRefreshMs: 5 });
+  await deliver(ctx, payload({ id: 'w1', type: 'text', text: { body: 'Czy wraca pobór?' } }));
+  await new Promise((r) => setTimeout(r, 40));
+  const during = ctx.typing.length;
+  assert.ok(during >= 2, `ponowienia: ${during}`);
+  assert.ok(ctx.typing.every((id) => id === 'w1'));
+  ctx.channel.onCheckDone('c1', okResponse('c1'));
+  await ctx.channel.idle();
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(ctx.typing.length, during);
 });
 
 test('nieprawidłowy payload (np. same statusy doręczenia) jest ignorowany', async () => {

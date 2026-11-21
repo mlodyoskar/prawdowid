@@ -40,7 +40,7 @@ pnpm install
 cp .env.example .env   # i uzupełnij klucze
 ```
 
-Uzupełnij w `.env` co najmniej `LLM_BASE_URL`, `LLM_API_KEY` i `LLM_MODEL` (dowolne API zgodne z OpenAI) oraz `GOOGLE_FACTCHECK_API_KEY`. Potem:
+Uzupełnij w `.env` co najmniej `OPENROUTER_API_KEY` i `LLM_MODEL` oraz `GOOGLE_FACTCHECK_API_KEY`. Domyślnie model działa przez OpenRouter; inny dostawca zgodny z API OpenAI to zmiana `LLM_BASE_URL`. Potem:
 
 ```bash
 pnpm --filter @prawdowid/sources seed   # korpus z danymi mockowymi → data/corpus.db

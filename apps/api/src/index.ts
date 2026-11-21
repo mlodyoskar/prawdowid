@@ -22,8 +22,7 @@ try {
 } catch (err) {
   log('llm_config_error', { message: err instanceof Error ? err.message : String(err) });
 }
-if (!model)
-  log('llm_not_configured', { hint: 'Ustaw LLM_BASE_URL, LLM_API_KEY i LLM_MODEL w .env' });
+if (!model) log('llm_not_configured', { hint: 'Ustaw OPENROUTER_API_KEY i LLM_MODEL w .env' });
 
 mkdirSync(dirname(env.CHECKS_DB_PATH), { recursive: true });
 const corpus = openCorpus(env.CORPUS_DB_PATH);

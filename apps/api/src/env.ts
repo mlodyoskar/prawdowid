@@ -13,9 +13,10 @@ const int = (fallback: number) =>
   z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(fallback));
 
 const Env = z.object({
-  /** Adres API zgodnego z OpenAI (OpenRouter, Mistral, OpenAI, Ollama, vLLM…). */
-  LLM_BASE_URL: optionalString,
-  LLM_API_KEY: optionalString,
+  /** Adres API zgodnego z OpenAI. Domyślnie OpenRouter; można wskazać Mistral, OpenAI, Ollama, vLLM… */
+  LLM_BASE_URL: z.preprocess(emptyToUndefined, z.string().default('https://openrouter.ai/api/v1')),
+  /** Klucz API OpenRouter (lub innego dostawcy wskazanego w LLM_BASE_URL). */
+  OPENROUTER_API_KEY: optionalString,
   /** `<dostawca>:<model>`, np. `openai-compatible:mistral-small-latest`. */
   LLM_MODEL: z.preprocess(
     emptyToUndefined,

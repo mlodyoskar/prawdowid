@@ -10,13 +10,13 @@ import type { Env } from './env.ts';
  * (np. `@ai-sdk/anthropic`, `@ai-sdk/google`) dodaje się jedną linią w rejestrze.
  */
 export function resolveModel(env: Env): LanguageModel | null {
-  if (!env.LLM_MODEL || !env.LLM_BASE_URL) return null;
+  if (!env.LLM_MODEL) return null;
 
   const registry = createProviderRegistry({
     'openai-compatible': createOpenAICompatible({
       name: 'openai-compatible',
       baseURL: env.LLM_BASE_URL,
-      ...(env.LLM_API_KEY ? { apiKey: env.LLM_API_KEY } : {}),
+      ...(env.OPENROUTER_API_KEY ? { apiKey: env.OPENROUTER_API_KEY } : {}),
       supportsStructuredOutputs: env.LLM_STRUCTURED_OUTPUTS,
       includeUsage: true,
     }),

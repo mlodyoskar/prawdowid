@@ -15,6 +15,8 @@ export type GuardedClaim = {
   hasDirect: boolean;
   /** Dowody, w których sędzia zauważył polecenia skierowane do systemu. */
   flagged: string[];
+  /** Materiały związane z twierdzeniem, które odrzuciliśmy, bo zawierają polecenia dla systemu. */
+  quarantined: string[];
   notes: string[];
 };
 
@@ -28,9 +30,12 @@ type Kept = EvidenceUse & { evidence: Evidence; direct: boolean };
 export function applyGuardrails(
   judgement: Judgement,
   available: ReadonlyMap<string, Evidence>,
+  /** Dowody, w których polecenia dla systemu wykrył kod (wzorce). */
+  suspect: ReadonlySet<string> = new Set(),
 ): GuardedClaim {
   const notes: string[] = [];
   const flagged: string[] = [];
+  const quarantined: string[] = [];
   const kept = new Map<string, Kept>();
 
   for (const item of judgement.items) {
@@ -42,6 +47,15 @@ export function applyGuardrails(
     if (kept.has(item.id)) continue;
     if (item.addressesModel) flagged.push(item.id);
     if (item.relation === 'unrelated') continue;
+
+    // Materiał z poleceniami dla systemu nie jest dowodem, niezależnie od tego, co „twierdzi”.
+    if (item.addressesModel || suspect.has(item.id)) {
+      quarantined.push(item.id);
+      notes.push(
+        `Pominięto materiał „${evidence.title}”: zawiera polecenia skierowane do systemu.`,
+      );
+      continue;
+    }
 
     // Bez potwierdzonego cytatu materiał nie trafia do wyniku, także jako kontekst.
     if (!isVerifiedQuote(item.quote, evidence)) {
@@ -55,7 +69,8 @@ export function applyGuardrails(
       id: item.id,
       // Materiał z tego samego tematu, ale o innej sprawie, może tylko uzupełniać kontekst.
       stance: item.relation === 'direct' ? item.stance : 'context',
-      quote: item.quote.trim(),
+      // «» to znaczniki trafień z wyszukiwarki, nie część materiału.
+      quote: item.quote.replace(/[«»]/g, '').trim(),
       evidence,
       direct,
     });
@@ -94,6 +109,7 @@ export function applyGuardrails(
     discrepancy: supports.length > 0 && refutes.length > 0,
     hasDirect: directItems.length > 0,
     flagged,
+    quarantined,
     notes,
   };
 }

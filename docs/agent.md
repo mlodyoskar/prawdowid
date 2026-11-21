@@ -75,7 +75,7 @@ Do tego proponuje werdykt, krótkie uzasadnienie i listę tego, czego nie udało
 
 Kod stosuje reguły w tej kolejności:
 
-1. Odrzuca dowody o nieznanym id, oznaczone `unrelated` oraz te, których cytatu nie ma w materiale (porównanie po normalizacji białych znaków, wielkości liter i cudzysłowów).
+1. Odrzuca dowody o nieznanym id, oznaczone `unrelated`, zawierające polecenia dla systemu oraz te, których cytatu nie ma w materiale (porównanie po normalizacji białych znaków, wielkości liter i cudzysłowów; cytat ma co najmniej 12 znaków albo jest oceną fact-checkera).
 2. `potwierdzone` wymaga co najmniej jednego dowodu `direct` + `supports`. `fałszywe` wymaga `direct` + `refutes`. `wprowadzające w błąd` wymaga dowodu `direct`. Gdy warunek nie jest spełniony, werdykt staje się `brak wystarczających dowodów`.
 3. Gdy ocalałe dowody `direct` wskazują w obie strony, wynik dostaje znacznik rozbieżności, a siła podstawy spada do `niska`.
 4. Gdy werdykt to `brak wystarczających dowodów`, a któreś źródło było niedostępne, twierdzenie trafia do listy `unchecked` z powodem. Jeśli nie zostało żadne ocenione twierdzenie, całe sprawdzenie kończy się statusem `error` z kodem `sources_unavailable`.
@@ -106,21 +106,42 @@ Typy są w [packages/contracts](../packages/contracts/src/index.ts). Pola dodane
 | `searched`                   | Źródła, w których faktycznie szukano                                                | „Gdzie sprawdziliśmy”        |
 | `mode`                       | Tryb, który wyprodukował wynik                                                      | brak (do ewaluacji)          |
 
+## Pierwszy test na żywo (2026-11-21)
+
+13 zapytań (część powtarzana trzykrotnie) na korpusie mockowym i prawdziwym Google Fact Check, przez OpenRouter. To nie jest jeszcze ewaluacja: przypadków jest za mało, a korpus jest testowy.
+
+| Konfiguracja                                | Mediana czasu | Najdłużej | Tokeny (17 sprawdzeń) |
+| ------------------------------------------- | ------------- | --------- | --------------------- |
+| `plan`, `anthropic/claude-haiku-5.5`        | 10,7 s        | 19,3 s    | 161 tys.              |
+| `agent`, `anthropic/claude-haiku-5.5`       | 8,6 s         | 14,7 s    | 165 tys.              |
+| `plan`, `openai/gpt-6-luna`                 | 12,7 s        | 23,2 s    | 91 tys.               |
+| `plan`, `deepseek/deepseek-v4.1-flash-1017` | 13,1 s        | 35,8 s    | 112 tys.              |
+
+Wiersze `agent`, luna i deepseek pochodzą z przebiegu sprzed poprawek trybu `plan` opisanych niżej.
+
+Co pokazał test:
+
+- **Awaria źródła (J):** bez klucza Fact Check zapytania bez dowodów kończą się `sources_unavailable`, a nie werdyktem. Zapytanie z dowodem w korpusie zachowuje werdykt z adnotacją.
+- **Instrukcja w źródle (E):** w pierwszym przebiegu materiał z poleceniem dla modelu trafił do wyniku jako dowód „potwierdzający” i obniżył siłę podstawy, a w kolejnym skłonił sędziego do wstrzymania się. Teraz materiał złapany wzorcem w ogóle nie trafia do sędziego, a po fladze sędziego ocena jest powtarzana bez niego.
+- **Rozbieżność (C):** tryb `plan` zwraca `brak wystarczających dowodów` ze znacznikiem rozbieżności i obiema wartościami. Tryb `agent` uznał twierdzenie za potwierdzone i dopisał wyjaśnienie różnicy, którego nie ma w materiałach.
+- **Powtarzalność:** werdykt był identyczny we wszystkich powtórzeniach w obu trybach. Zestaw cytowanych materiałów kontekstowych różnił się między powtórzeniami (patrz [todo.md](../todo.md)).
+- **Modele:** haiku prosi o doprecyzowanie najrzadziej i najlepiej opisuje, czego nie ustalono. Luna zużywa najmniej tokenów, ale raz poprosiła o doprecyzowanie bez potrzeby. Deepseek dzieli jedno pytanie na dwa twierdzenia i ma najdłuższy ogon czasu.
+- **Znane słabości:** przy werdykcie opartym na fact-checku cytatem bywa sama ocena („Fałsz”), bo API nie zwraca treści artykułu. Werdykt `wprowadzające w błąd` kod przepuszcza przy dowolnym materiale dotyczącym twierdzenia wprost. Pytanie o różnicę 700 i 650 mln zł (scenariusz C z zadań) nie ma odpowiedzi, bo kwoty 650 mln nie ma w danych z API.
+
 ## Stan
 
 Gotowe:
 
 - API, kolejka zadań, zapis przebiegu, maskowanie danych osobowych, pobieranie URL-i, korpus FTS, klient Fact Check, tryb `agent`.
-- Tryb `plan`: wydzielanie twierdzeń z planem zapytań, równoległe wyszukiwanie, sędzia bez narzędzi, reguły w kodzie, siła podstawy, runda poprawy.
+- Tryb `plan`: wydzielanie twierdzeń z planem zapytań, równoległe wyszukiwanie, sędzia bez narzędzi, reguły w kodzie, siła podstawy, runda poprawy. Sprawdzony na prawdziwych modelach (wyżej).
 
 Do zrobienia, w kolejności:
 
-1. **Uruchomienie trybu `plan` na prawdziwym modelu.** Na razie przechodzą tylko testy z modelem zastępczym.
-2. **Prawdziwy korpus** zamiast danych mockowych (plik JSONL, potem baza).
-3. **Zestaw testowy i runner ewaluacji**: JSONL z przypadkami, uruchomienie obu trybów, tabela mierników.
-4. **Dłuższe fragmenty z korpusu.** Wyszukiwanie zwraca wycinek około 40 słów, a to mało dla sędziego i dla cytatów.
-5. **Źródła `live`** (IMGW, RSO, Odyseusz) jako kolejne narzędzia wyszukiwania.
-6. **Obrazy w Fact Check** (`claims:imageSearch`). Wymaga publicznego, krótkotrwałego adresu obrazu.
-7. **Etapy zadania dla ekranu „Sprawdzamy”.** Tryb `plan` zgłasza etapy przez `onStage`, ale API ich jeszcze nie zapisuje.
-8. **Langfuse.**
-9. **Wspólny kod wstępnego przetwarzania.** Tryb `plan` powiela z `verify()` maskowanie, pobieranie stron i ostrzeżenia, żeby nie przebudowywać cudzego kodu w trakcie prac. Do scalenia, gdy oba tryby się ustabilizują.
+1. **Prawdziwy korpus** zamiast danych mockowych (plik JSONL, potem baza).
+2. **Zestaw testowy i runner ewaluacji**: JSONL z przypadkami, uruchomienie obu trybów, tabela mierników.
+3. **Dłuższe fragmenty z korpusu.** Wyszukiwanie zwraca wycinek około 40 słów, a to mało dla sędziego i dla cytatów.
+4. **Źródła `live`** (IMGW, RSO, Odyseusz) jako kolejne narzędzia wyszukiwania.
+5. **Obrazy w Fact Check** (`claims:imageSearch`). Wymaga publicznego, krótkotrwałego adresu obrazu.
+6. **Etapy zadania dla ekranu „Sprawdzamy”.** Tryb `plan` zgłasza etapy przez `onStage`, ale API ich jeszcze nie zapisuje.
+7. **Langfuse.**
+8. **Wspólny kod wstępnego przetwarzania.** Tryb `plan` powiela z `verify()` maskowanie, pobieranie stron i ostrzeżenia, żeby nie przebudowywać cudzego kodu w trakcie prac. Do scalenia, gdy oba tryby się ustabilizują.

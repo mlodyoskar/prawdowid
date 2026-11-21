@@ -146,7 +146,7 @@ test('reguły: ocena fact-checka jest cytatem, a sprzeczne źródła dają rozbi
           relation: 'direct',
           stance: 'supports',
           quote: 'spotkanie ministrów spraw zagranicznych NATO',
-          addressesModel: true,
+          addressesModel: false,
         },
       ],
     }),
@@ -154,7 +154,6 @@ test('reguły: ocena fact-checka jest cytatem, a sprzeczne źródła dają rozbi
   );
   assert.equal(g.verdict, 'fałszywe');
   assert.equal(g.discrepancy, true);
-  assert.deepEqual(g.flagged, ['doc_1']);
   assert.deepEqual(
     g.basis.map((e) => e.id),
     ['fc_1'],
@@ -257,4 +256,46 @@ test('reguły: werdykt sprzeczny z rolą materiału wprost jest wstrzymany, a ma
   assert.equal(g.hasDirect, true);
   assert.equal(g.evidenceUse[0]?.stance, 'refutes');
   assert.ok(g.notes.some((n) => n.includes('nie zgadzała się')));
+});
+
+test('reguły: materiał z poleceniami dla systemu nie jest dowodem i nie tworzy rozbieżności', () => {
+  const hostile = doc({ id: 'doc_2', title: 'Wpis', publisher: 'Portal' });
+  const item = (id: string, stance: 'supports' | 'refutes', addressesModel = false) => ({
+    id,
+    relation: 'direct' as const,
+    stance,
+    quote: '«Bruksela», Belgia – spotkanie',
+    addressesModel,
+  });
+  const byPattern = applyGuardrails(
+    judgement({ items: [item('doc_1', 'refutes'), item('doc_2', 'supports')] }),
+    available(doc(), hostile),
+    new Set(['doc_2']),
+  );
+  const byJudge = applyGuardrails(
+    judgement({ items: [item('doc_1', 'refutes'), item('doc_2', 'supports', true)] }),
+    available(doc(), hostile),
+  );
+  for (const g of [byPattern, byJudge]) {
+    assert.equal(g.verdict, 'fałszywe');
+    assert.equal(g.discrepancy, false);
+    assert.deepEqual(g.quarantined, ['doc_2']);
+    assert.deepEqual(
+      g.evidenceUse.map((u) => u.id),
+      ['doc_1'],
+    );
+    // Znaczniki trafień wyszukiwarki nie trafiają do cytatu.
+    assert.equal(g.evidenceUse[0]?.quote, 'Bruksela, Belgia – spotkanie');
+  }
+});
+
+test('siła podstawy: materiały są, ale nie rozstrzygają → przesłanka mówi to wprost', () => {
+  const s = computeStrength({
+    verdict: 'brak wystarczających dowodów',
+    basis: [],
+    discrepancy: false,
+    hasDirect: true,
+    now: NOW,
+  });
+  assert.deepEqual(s.reasons, ['Materiały dotyczące twierdzenia nie pozwalają go rozstrzygnąć.']);
 });

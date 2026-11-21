@@ -14,6 +14,8 @@ export function computeStrength(input: {
   verdict: Verdict;
   basis: readonly Evidence[];
   discrepancy: boolean;
+  /** Czy są materiały dotyczące twierdzenia wprost (nawet jeśli nie dały werdyktu). */
+  hasDirect?: boolean;
   now: Date;
 }): Strength {
   const { verdict, basis, discrepancy, now } = input;
@@ -27,7 +29,11 @@ export function computeStrength(input: {
   if (basis.length === 0) {
     return {
       confidence: 'niska',
-      reasons: ['Brak materiału, który wprost dotyczy twierdzenia.'],
+      reasons: [
+        input.hasDirect
+          ? 'Materiały dotyczące twierdzenia nie pozwalają go rozstrzygnąć.'
+          : 'Brak materiału, który wprost dotyczy twierdzenia.',
+      ],
     };
   }
 

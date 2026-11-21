@@ -99,6 +99,8 @@ type ClaimState = {
   evidence: Map<string, Evidence>;
   /** Źródła, które zawiodły przy zapytaniach tego twierdzenia: etykieta → komunikat. */
   failures: Map<string, string>;
+  /** Materiały związane z twierdzeniem, w których sędzia zauważył polecenia dla systemu. */
+  hostile: Set<string>;
   judgement?: Judgement;
   guarded?: GuardedClaim;
 };
@@ -276,9 +278,8 @@ export async function verifyPlanned(
     }
   };
 
-  const judge = async (claim: ClaimState) => {
-    const evidence = [...claim.evidence.values()];
-    claim.judgement = await callModel(
+  const askJudge = (claim: ClaimState, evidence: readonly Evidence[]) =>
+    callModel(
       deps.judgeModel ?? deps.model,
       buildJudgeInstructions(startedAt),
       [
@@ -293,7 +294,42 @@ export async function verifyPlanned(
       ],
       Judgement,
     );
-    claim.guarded = applyGuardrails(claim.judgement, claim.evidence);
+
+  const judge = async (claim: ClaimState) => {
+    // Materiał, w którym kod wykrył polecenia dla systemu, w ogóle nie trafia do sędziego:
+    // nie może wtedy wpłynąć ani na werdykt, ani na dowody.
+    const suspect = new Set(registry.injectionSignals.map((s) => s.source));
+    let visible = [...claim.evidence.values()].filter((e) => !suspect.has(e.id));
+
+    // Nie ma czego oceniać, a źródło zawiodło: wynik jest przesądzony, model niczego tu nie doda.
+    if (visible.length === 0 && claim.failures.size > 0) {
+      claim.judgement = {
+        items: [],
+        verdict: 'brak wystarczających dowodów',
+        explanation: '',
+        unknowns: [],
+        limitations: '',
+      };
+      claim.guarded = applyGuardrails(claim.judgement, claim.evidence, suspect);
+      return;
+    }
+
+    let judgement = await askJudge(claim, visible);
+    // Polecenia, których wzorce nie złapały, a zauważył je sędzia: oceniamy jeszcze raz bez tego materiału.
+    const hostile = judgement.items
+      .filter((i) => i.addressesModel && i.relation !== 'unrelated' && claim.evidence.has(i.id))
+      .map((i) => i.id);
+    if (hostile.length > 0) {
+      for (const id of hostile) claim.hostile.add(id);
+      visible = visible.filter((e) => !claim.hostile.has(e.id));
+      judgement = await askJudge(claim, visible);
+    }
+    claim.judgement = judgement;
+    claim.guarded = applyGuardrails(
+      judgement,
+      claim.evidence,
+      new Set([...suspect, ...claim.hostile]),
+    );
   };
 
   /** Inne zapytania dla twierdzenia, którego nic nie dotyczyło wprost, i ponowna ocena. */
@@ -339,11 +375,12 @@ export async function verifyPlanned(
     if (extraction.status !== 'ok' || extraction.claims.length === 0) {
       enter(null);
       const status = extraction.status === 'ok' ? 'needs_clarification' : extraction.status;
+      // Poza zakresem odpowiadamy stałym tekstem: model nie ma tu nic do dodania.
       const message =
-        extraction.message.trim() ||
-        (status === 'out_of_scope'
+        status === 'out_of_scope'
           ? 'Ta usługa sprawdza informacje i pogłoski. Prześlij treść, którą chcesz zweryfikować.'
-          : 'Nie udało się wydzielić twierdzenia do sprawdzenia. Napisz dokładniej, co chcesz zweryfikować.');
+          : extraction.message.trim() ||
+            'Nie udało się wydzielić twierdzenia do sprawdzenia. Napisz dokładniej, co chcesz zweryfikować.';
       return { response: { ...meta(), status, message }, metrics: metrics() };
     }
     claims = extraction.claims
@@ -359,6 +396,7 @@ export async function verifyPlanned(
           : [],
         evidence: new Map(),
         failures: new Map(),
+        hostile: new Set(),
       }));
     if (claims.length === 0) {
       enter(null);
@@ -488,7 +526,7 @@ function compose(
     const { guarded, judgement } = state;
     if (!guarded || !judgement) continue;
 
-    for (const id of guarded.flagged) {
+    for (const id of new Set([...guarded.flagged, ...state.hostile])) {
       if (!registry.injectionSignals.some((s) => s.source === id)) {
         registry.injectionSignals.push({ source: id, pattern: 'judge_flag' });
       }
@@ -512,6 +550,7 @@ function compose(
       verdict: guarded.verdict,
       basis: guarded.basis,
       discrepancy: guarded.discrepancy,
+      hasDirect: guarded.hasDirect,
       now,
     });
     for (const use of guarded.evidenceUse) {
@@ -558,10 +597,30 @@ function compose(
     };
   }
 
+  // Zgłoszenie, podana strona i materiały ocenione przez sędziego jako związane z twierdzeniem
+  // dostają osobne ostrzeżenie. Trafienia odrzucone po wzorcu zliczamy razem: nie wiemy, czy dotyczyły sprawy.
+  const judged = new Set(states.flatMap((s) => [...s.hostile, ...(s.guarded?.quarantined ?? [])]));
+  const byPattern = new Set(
+    registry.injectionSignals
+      .filter((s) => registry.byId.has(s.source) && s.pattern !== 'judge_flag')
+      .map((s) => s.source),
+  );
   const warnings = [
     ...preWarnings,
-    ...registry.injectionSignals.map((s) => injectionWarning(s, registry)),
+    ...registry.injectionSignals
+      .filter(
+        (s) =>
+          s.source === 'user' ||
+          s.source.startsWith('url:') ||
+          (judged.has(s.source) && !byPattern.has(s.source)),
+      )
+      .map((s) => injectionWarning(s, registry)),
   ];
+  if (byPattern.size > 0) {
+    warnings.push(
+      `Pominęliśmy znalezione materiały z poleceniami skierowanymi do systemu (${byPattern.size}). Nie wpłynęły na wynik.`,
+    );
+  }
   const succeeded = (tool: ToolName) =>
     registry.calls[tool] - registry.failures.filter((f) => f.tool === tool).length;
   for (const tool of TOOL_NAMES) {

@@ -1,5 +1,5 @@
 import {
-  ClaimResult,
+  ClaimResultCore,
   DECISIVE_VERDICTS,
   type CheckRequest,
   type CheckResponse,
@@ -24,15 +24,15 @@ import { createTools, EvidenceRegistry, type AgentSources, type ToolName } from 
 
 /** Mniej kroków = krócej: cały budżet sprawdzenia to ~30 s. */
 const MAX_STEPS = 5;
-const MAX_URLS = 2;
-const ARCHIVAL_AFTER_DAYS = 365;
+export const MAX_URLS = 2;
+export const ARCHIVAL_AFTER_DAYS = 365;
 
 /** Co model zwraca na końcu. Wszystkie pola wymagane: część dostawców nie wspiera pól opcjonalnych w structured output. */
 const AgentOutput = z.object({
   status: z.enum(['ok', 'needs_clarification', 'out_of_scope']),
   summary: z.string().describe('1–2 zdania podsumowania (pusty, gdy status ≠ ok)'),
   message: z.string().describe('Komunikat dla użytkownika, gdy status ≠ ok (pusty, gdy ok)'),
-  claims: z.array(ClaimResult),
+  claims: z.array(ClaimResultCore),
   warnings: z.array(z.string()),
 });
 type AgentOutput = z.infer<typeof AgentOutput>;
@@ -172,7 +172,7 @@ export async function verify(
   };
 }
 
-function buildMessages(
+export function buildMessages(
   text: string | undefined,
   image: CheckRequest['image'],
   pages: PageResult[],
@@ -185,7 +185,7 @@ function buildMessages(
   return [{ role: 'user', content: parts }];
 }
 
-function injectionWarning(signal: InjectionSignal, registry: EvidenceRegistry): string {
+export function injectionWarning(signal: InjectionSignal, registry: EvidenceRegistry): string {
   const tail =
     'wykryto polecenia skierowane do systemu (próba wpłynięcia na wynik). Zignorowaliśmy je.';
   if (signal.source === 'user') return `W zgłoszeniu ${tail}`;
@@ -278,12 +278,12 @@ function postProcess(
   };
 }
 
-function isOlderThan(date: string, now: Date, days: number): boolean {
+export function isOlderThan(date: string, now: Date, days: number): boolean {
   const t = Date.parse(date);
   return Number.isFinite(t) && now.getTime() - t > days * 24 * 60 * 60 * 1000;
 }
 
-function classifyError(
+export function classifyError(
   err: unknown,
   signal: AbortSignal | undefined,
 ): { code: ErrorCode; message: string } {

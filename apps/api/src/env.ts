@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 
+import { ResearchMode } from '@prawdowid/contracts';
 import { z } from 'zod';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
@@ -27,6 +28,19 @@ const Env = z.object({
   ),
   /** Czy dostawca obsługuje `response_format: json_schema`. */
   LLM_STRUCTURED_OUTPUTS: boolFlag(true),
+  /**
+   * Tryb kroku wyszukiwania (docs/agent.md): `agent` = pętla modelu z narzędziami,
+   * `plan` = plan zapytań wykonywany przez kod + sędzia bez narzędzi.
+   */
+  RESEARCH_MODE: z.preprocess(emptyToUndefined, ResearchMode.default('agent')),
+  /** Osobny model sędziego w trybie `plan` (format jak LLM_MODEL). Domyślnie LLM_MODEL. */
+  LLM_JUDGE_MODEL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^[\w-]+:.+$/, 'Format: <dostawca>:<model>')
+      .optional(),
+  ),
   GOOGLE_FACTCHECK_API_KEY: optionalString,
   CORPUS_DB_PATH: z.preprocess(emptyToUndefined, z.string().default('data/corpus.db')),
   CHECKS_DB_PATH: z.preprocess(emptyToUndefined, z.string().default('data/checks.db')),

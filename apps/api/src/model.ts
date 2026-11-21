@@ -9,8 +9,8 @@ import type { Env } from './env.ts';
  * a także samodzielnie hostowane Ollama / vLLM / LM Studio. Natywnego dostawcę z AI SDK
  * (np. `@ai-sdk/anthropic`, `@ai-sdk/google`) dodaje się jedną linią w rejestrze.
  */
-export function resolveModel(env: Env): LanguageModel | null {
-  if (!env.LLM_MODEL) return null;
+export function resolveModel(env: Env, modelId = env.LLM_MODEL): LanguageModel | null {
+  if (!modelId) return null;
 
   const registry = createProviderRegistry({
     'openai-compatible': createOpenAICompatible({
@@ -22,5 +22,5 @@ export function resolveModel(env: Env): LanguageModel | null {
     }),
   });
 
-  return registry.languageModel(env.LLM_MODEL as `openai-compatible:${string}`);
+  return registry.languageModel(modelId as `openai-compatible:${string}`);
 }

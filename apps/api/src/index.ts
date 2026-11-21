@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 
 import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
-import { verify } from '@prawdowid/agent';
+import { verify, verifyPlanned } from '@prawdowid/agent';
 import { fetchPage, openCorpus, searchFactChecks } from '@prawdowid/sources';
 import type { Context } from 'hono';
 
@@ -23,6 +23,14 @@ try {
   log('llm_config_error', { message: err instanceof Error ? err.message : String(err) });
 }
 if (!model) log('llm_not_configured', { hint: 'Ustaw OPENROUTER_API_KEY i LLM_MODEL w .env' });
+
+let judgeModel: ReturnType<typeof resolveModel> = null;
+try {
+  if (env.LLM_JUDGE_MODEL) judgeModel = resolveModel(env, env.LLM_JUDGE_MODEL);
+} catch (err) {
+  log('llm_config_error', { message: err instanceof Error ? err.message : String(err) });
+}
+log('research_mode', { mode: env.RESEARCH_MODE });
 
 mkdirSync(dirname(env.CHECKS_DB_PATH), { recursive: true });
 const corpus = openCorpus(env.CORPUS_DB_PATH);
@@ -48,16 +56,16 @@ const runner = new JobRunner({
   timeoutMs: env.CHECK_TIMEOUT_MS,
   run: (input, options) => {
     if (!model) throw new Error('LLM not configured');
-    return verify(
-      input,
-      {
-        model,
-        corpus,
-        factchecks: (q) => searchFactChecks(q, { apiKey: env.GOOGLE_FACTCHECK_API_KEY }),
-        fetchPage: (url) => fetchPage(url),
-      },
-      options,
-    );
+    const deps = {
+      model,
+      corpus,
+      factchecks: (q: Parameters<typeof searchFactChecks>[0]) =>
+        searchFactChecks(q, { apiKey: env.GOOGLE_FACTCHECK_API_KEY }),
+      fetchPage: (url: string) => fetchPage(url),
+    };
+    return env.RESEARCH_MODE === 'plan'
+      ? verifyPlanned(input, { ...deps, ...(judgeModel ? { judgeModel } : {}) }, options)
+      : verify(input, deps, options);
   },
   // Log bez treści pytania (minimalizacja danych).
   onDone: (checkId, { response, metrics }) => {

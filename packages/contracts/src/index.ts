@@ -68,7 +68,27 @@ export const Evidence = z.object({
 });
 export type Evidence = z.infer<typeof Evidence>;
 
-export const ClaimResult = z.object({
+/** Tryb kroku wyszukiwania: pętla modelu z narzędziami albo plan zapytań wykonywany przez kod. */
+export const ResearchMode = z.enum(['agent', 'plan']);
+export type ResearchMode = z.infer<typeof ResearchMode>;
+
+/** Rola dowodu wobec twierdzenia. */
+export const Stance = z.enum(['supports', 'refutes', 'context']);
+export type Stance = z.infer<typeof Stance>;
+
+export const EvidenceUse = z.object({
+  id: z.string(),
+  stance: Stance,
+  /** Dosłowny fragment materiału sprawdzony w kodzie. Pusty, gdy dowód tylko uzupełnia kontekst. */
+  quote: z.string(),
+});
+export type EvidenceUse = z.infer<typeof EvidenceUse>;
+
+/**
+ * Pola, które zwraca model w trybie `agent`. Wszystkie wymagane: część dostawców
+ * nie wspiera pól opcjonalnych w structured output.
+ */
+export const ClaimResultCore = z.object({
   claim: z.string(),
   verdict: Verdict,
   confidence: Confidence,
@@ -76,9 +96,33 @@ export const ClaimResult = z.object({
   evidenceIds: z.array(z.string()),
   limitations: z.string(),
 });
+export type ClaimResultCore = z.infer<typeof ClaimResultCore>;
+
+/** Wynik dla twierdzenia. Pola opcjonalne wypełnia tryb `plan` (patrz docs/agent.md). */
+export const ClaimResult = ClaimResultCore.extend({
+  /** Rola i cytat dla każdego dowodu z `evidenceIds`. */
+  evidenceUse: z.array(EvidenceUse).optional(),
+  /** Jawne przesłanki, z których kod wyliczył `confidence`. */
+  confidenceReasons: z.array(z.string()).optional(),
+  /** Czego nie udało się ustalić. */
+  unknowns: z.array(z.string()).optional(),
+  /** Źródła dotyczące twierdzenia wprost podają rozbieżne informacje. */
+  discrepancy: z.boolean().optional(),
+});
 export type ClaimResult = z.infer<typeof ClaimResult>;
 
-export const ErrorCode = z.enum(['llm_unavailable', 'missing_config', 'timeout', 'internal']);
+/** Twierdzenie, którego nie udało się sprawdzić z powodów technicznych. To nie jest werdykt. */
+export const UncheckedClaim = z.object({ claim: z.string(), reason: z.string() });
+export type UncheckedClaim = z.infer<typeof UncheckedClaim>;
+
+export const ErrorCode = z.enum([
+  'llm_unavailable',
+  'missing_config',
+  'timeout',
+  'internal',
+  /** Źródła danych były niedostępne i nie ma na czym oprzeć żadnej oceny. */
+  'sources_unavailable',
+]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
 const ResponseMeta = z.object({
@@ -94,6 +138,11 @@ export const CheckResponse = z.discriminatedUnion('status', [
     claims: z.array(ClaimResult),
     evidence: z.array(Evidence),
     warnings: z.array(z.string()),
+    /** Twierdzenia niesprawdzone z powodu awarii źródeł. */
+    unchecked: z.array(UncheckedClaim).optional(),
+    /** Źródła, w których faktycznie szukano. */
+    searched: z.array(z.string()).optional(),
+    mode: ResearchMode.optional(),
   }),
   ResponseMeta.extend({ status: z.literal('needs_clarification'), message: z.string() }),
   ResponseMeta.extend({ status: z.literal('out_of_scope'), message: z.string() }),

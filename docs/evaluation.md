@@ -285,3 +285,20 @@ Ten sam przebieg co w sekcji powyżej (Haiku 5.5, plan, 144 sprawdzenia bezpośr
 - **Werdykty.** Wśród 14 nieuzasadnionych: F3 ×3 (stary alert z nową datą to „wprowadzające w błąd”, nie brak dowodów), A8 i X5 ×3 oraz E3 ×1 (dokument podaje „około 300”, a system się wstrzymał), A2 ×3 i B4 ×1 (zła cecha podana wprost to „fałszywe”, nie „wprowadzające w błąd”), D5 ×1 („ponad 30 urządzeń” nie obala 63 laptopów), X5 ×1 (89 wyróżnionych nie przeczy 105 uczestnikom), I2 ×1.
 - **Zgodność z etykietami.** Własny werdykt sędziego zgadza się z etykietą wzorcową we wszystkich przypadkach jednotezowych. Sędzia znał jednak etykiety z wcześniejszej części sesji, więc to nie jest niezależna recenzja etykiet. Dlatego umiejętność `judge-evals` zleca teraz ocenę subagentom ze świeżym kontekstem, po jednym na partię, z zakazem otwierania plików z etykietami. Ten przebieg warto powtórzyć w tym trybie.
 - **Ograniczenia.** Sędzia i oceniany system to modele Anthropic, więc możliwa jest wspólna stronniczość. Rubryka i pełny tekst źródeł ją ograniczają, ale nie usuwają. Wynik 85% poprawności cytatów należy potwierdzić na próbce ocenionej przez człowieka.
+
+## Werdykty: wiadomość dla sędziego, definicje i relacja „direct”
+
+Trzy osobne zmiany w trybie plan, każda sprawdzona na tym samym podzbiorze 20 przypadków (dwa przebiegi, Haiku 5.5, `--no-reuse`). Przypadki B7, B8 i A14 dopisano przed zmianami, z etykietami ustalonymi z góry.
+
+| Wariant                                                    | Zgodne z etykietą | Obniżone werdykty | Rundy poprawy |
+| ---------------------------------------------------------- | ----------------: | ----------------: | ------------: |
+| Przed zmianami                                             |             26/40 |                 — |             — |
+| 1. Sędzia widzi wiadomość użytkownika                      |             25/40 |                 — |             — |
+| 2. Definicje: fałszywe / wprowadzające w błąd / brak       |             30/40 |                 1 |             5 |
+| 3. „direct” = ta sama sprawa, także przy błędnym szczególe |             32/40 |                 0 |             1 |
+
+Pełny zbiór po wszystkich trzech zmianach (dwa przebiegi bez ponownego użycia wyniku): macro-F1 0,916 na zbiorze rozwojowym i 0,787 na odłożonym. Poprzedni pomiar z ponownym użyciem wyniku dawał 0,687 i 0,619, więc porównanie jest przybliżone. F1 dla „wprowadzające w błąd” wzrosło z 0 do 0,61. Odporność na injection 10/10, awarie jako status 8/8, wstrzymanie się 11/12.
+
+Nadal nie działa: I1–I3 (ekstrakcja rozbija pytanie o tożsamość dokumentu na kilka tez o treści strony), granica „fałszywe” / „wprowadzające w błąd” przy starym materiale podanym jako dzisiejszy (B3, F3, B7 wychodzą raz tak, raz tak), D5 („ponad 30 urządzeń” bywa brane za obalenie 63 laptopów). Zmiany nie dotyczą trybu agent.
+
+Surowe wyniki: [przed](../evals/runs/2026-11-21T23-39-36.724Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [1](../evals/runs/2026-11-21T23-42-31.207Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [2](../evals/runs/2026-11-21T23-45-05.959Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [3](../evals/runs/2026-11-21T23-47-25.292Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [pełny, rozwój](../evals/runs/2026-11-21T23-49-45.135Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [pełny, odłożone](../evals/runs/2026-11-21T23-49-45.135Z-plan-held-out-anthropic_claude-haiku-5.5.jsonl).

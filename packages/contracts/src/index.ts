@@ -65,8 +65,6 @@ export const Evidence = z.object({
   /** Ocena fact-checkera (textualRating), tylko dla kind = factcheck. */
   rating: z.string().optional(),
   sourceType: SourceType.optional(),
-  /** Dokument z danych mockowych: nie jest prawdziwym źródłem. */
-  isMock: z.boolean().optional(),
 });
 export type Evidence = z.infer<typeof Evidence>;
 

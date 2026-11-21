@@ -713,9 +713,6 @@ function compose(
       );
     }
   }
-  if (evidence.some((e) => e.isMock)) {
-    warnings.push('Część dowodów pochodzi z danych testowych (mock), a nie z prawdziwych źródeł.');
-  }
 
   const searched = TOOL_NAMES.filter((tool) => succeeded(tool) > 0).map(
     (tool) => SOURCE_LABEL[tool],

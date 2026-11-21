@@ -3,7 +3,7 @@ export const MAX_FRAGMENT_CHARS = 600;
 
 /**
  * Dzieli treść na fragmenty do `max` znaków, tnąc na granicach zdań.
- * Używane dla dokumentów bez gotowych fragmentów (mocki, testy); snapshot korpusu ma własne.
+ * Używane dla dokumentów bez gotowych fragmentów (np. w testach); snapshot korpusu ma własne.
  */
 export function splitIntoFragments(text: string, max: number = MAX_FRAGMENT_CHARS): string[] {
   const clean = text.replace(/\s+/g, ' ').trim();

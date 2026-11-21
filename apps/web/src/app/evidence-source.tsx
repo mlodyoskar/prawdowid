@@ -48,7 +48,6 @@ export function EvidenceSource({ evidence: e, use }: { evidence: Evidence; use?:
       href={web ? e.url : undefined}
       meta={meta}
       quote={quote ? `„${quote}”` : undefined}
-      caution={e.isMock ? 'Dane demonstracyjne – to nie jest prawdziwa publikacja.' : undefined}
       footer={
         e.rating || use ? (
           <span className="flex flex-col gap-1 text-label">

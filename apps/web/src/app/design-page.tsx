@@ -114,11 +114,10 @@ const ARCHIVE: Evidence = {
   sourceType: 'secondary',
   title: 'Szczyt NATO w Warszawie, 8–9 lipca 2016 r.',
   publisher: 'Ministerstwo Obrony Narodowej',
-  url: 'mock://corpus/szczyt-2016',
+  url: 'https://www.gov.pl/web/obrona-narodowa',
   publishedAt: '2016-07-01T10:00:00Z',
   fetchedAt: '2026-11-21T10:00:00Z',
   excerpt: '',
-  isMock: true,
 };
 
 const SAMPLE_EVIDENCE: readonly Evidence[] = [OFFICIAL, FACTCHECK, ARCHIVE];

@@ -26,8 +26,8 @@ test('formatDate uses Polish format in Warsaw time and rejects bad input', () =>
 
 test('hostname and isWebUrl', () => {
   assert.equal(hostname('https://www.gov.pl/web/dyplomacja'), 'gov.pl');
-  assert.equal(hostname('mock://corpus/1'), 'corpus');
+  assert.equal(hostname('ftp://archiwum.example/1'), 'archiwum.example');
   assert.equal(isWebUrl('https://nato.int'), true);
-  assert.equal(isWebUrl('mock://corpus/1'), false);
+  assert.equal(isWebUrl('ftp://archiwum.example/1'), false);
   assert.equal(isWebUrl('javascript:alert(1)'), false);
 });

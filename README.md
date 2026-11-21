@@ -30,7 +30,8 @@ Zależności: `api → agent → sources → contracts`. Frontend zna tylko `con
 | [docs/open-questions.md](docs/open-questions.md)                     | Otwarte pytania do mentorów                                                    |
 | [docs/agent.md](docs/agent.md)                                       | Projekt agenta: decyzje, tryby `agent` i `plan`, reguły werdyktu, stan prac    |
 | [todo.md](todo.md)                                                   | Odłożone decyzje                                                               |
-| [data/sources.ts](data/sources.ts)                                   | Lista URL-i źródeł: jedyne źródło prawdy                                       |
+| [data/sources.ts](data/sources.ts)                                   | Lista URL-i źródeł: jedyne źródło prawdy (z licencją źródeł korpusu)           |
+| [data/corpus/snapshot.jsonl](data/corpus/snapshot.jsonl)             | Snapshot korpusu ze scrapera: dokumenty pocięte na fragmenty                   |
 | [.env.example](.env.example)                                         | Wymagane zmienne środowiskowe (bez wartości)                                   |
 
 ## Uruchomienie
@@ -45,7 +46,7 @@ cp .env.example .env   # i uzupełnij klucze
 Uzupełnij w `.env` co najmniej `OPENROUTER_API_KEY` i `LLM_MODEL` oraz `GOOGLE_FACTCHECK_API_KEY`. Domyślnie model działa przez OpenRouter; inny dostawca zgodny z API OpenAI to zmiana `LLM_BASE_URL`. Potem:
 
 ```bash
-pnpm --filter @prawdowid/sources seed   # korpus z danymi mockowymi → data/corpus.db
+pnpm --filter @prawdowid/sources seed   # korpus ze snapshotu data/corpus/snapshot.jsonl → data/corpus.db
 pnpm --filter @prawdowid/api dev        # API na http://localhost:3000
 pnpm --filter @prawdowid/web dev        # strona na http://localhost:5173
 ```
@@ -73,7 +74,14 @@ Krok wyszukiwania ma dwa tryby wybierane zmienną `RESEARCH_MODE`: `agent` (domy
 
 Zabezpieczenia: URL-e z tekstu (maksymalnie 2) są pobierane z ochroną SSRF i traktowane jako materiał do oceny, nie dowód. Dane osobowe (e-mail, telefon, PESEL, konto, karta, dowód) są maskowane przed zapisem i przed modelem. `POST` jest limitowany per IP (`RATE_LIMIT_PER_MINUTE`). Wykryte próby prompt injection trafiają do ostrzeżeń i logu `prompt_injection_suspected`.
 
-> ⚠️ Korpus zawiera na razie wyłącznie dane mockowe (URL-e `mock://…`, flaga `isMock`). Przed demem trzeba je zastąpić prawdziwymi dokumentami.
+### Korpus
+
+Korpus to plik SQLite (`data/corpus.db`) budowany od zera ze snapshotu [data/corpus/snapshot.jsonl](data/corpus/snapshot.jsonl): jeden dokument w wierszu, z tytułem, wydawcą, datą publikacji i pobrania, adresem oraz treścią pociętą na fragmenty do 600 znaków.
+
+- `pnpm --filter @prawdowid/sources seed [ścieżka]` sprawdza cały plik i dopiero potem podmienia bazę. Jeden błędny wiersz (brak pola, zła data, `zrodlo_id` spoza [data/sources.ts](data/sources.ts), powtórzony adres) przerywa import i zostawia poprzedni korpus bez zmian. Po imporcie wypisuje liczbę dokumentów i licencję każdego źródła.
+- Wyszukiwanie działa na fragmentach (FTS5) i zwraca całe fragmenty, najwyżej dwa z jednego dokumentu. Na tej samej treści kod sprawdza potem cytaty.
+- Wersja korpusu (`wersja_korpusu` ze snapshotu) jest widoczna w `GET /health` i zapisywana przy każdym sprawdzeniu, więc wyniki testów da się przypisać do konkretnego korpusu.
+- Nowy snapshot: podmień plik i uruchom `seed`. Kluczem dokumentu jest adres URL, bo identyfikatory `doc-…` zmieniają się między snapshotami. Po zmianie schematu bazy stary plik `corpus.db` trzeba zbudować od nowa (API powie to przy starcie).
 
 ### Frontend
 
@@ -112,7 +120,7 @@ Dwie usługi z tego samego repo, obie budowane z katalogu głównego (pakiety wo
 
 | Usługa           | Plik konfiguracji        | Co robi                                                                                 |
 | ---------------- | ------------------------ | --------------------------------------------------------------------------------------- |
-| `@prawdowid/api` | `/apps/api/railway.json` | Build wypełnia korpus (`seed`), start `pnpm --filter @prawdowid/api start`              |
+| `@prawdowid/api` | `/apps/api/railway.json` | Build buduje korpus ze snapshotu (`seed`), start `pnpm --filter @prawdowid/api start`   |
 | `@prawdowid/web` | `/apps/web/railway.json` | Build Vite, serwowanie przez Caddy z nagłówkami bezpieczeństwa z [Caddyfile](Caddyfile) |
 
 Zmienne ustawia się w Railway, nie w plikach:

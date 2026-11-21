@@ -15,7 +15,7 @@ type SourceCardProps = {
   meta: string;
   /** Exact excerpt from the source. */
   quote?: React.ReactNode;
-  /** Neutral warning about the source (archive, sanctions, mock data). */
+  /** Neutral warning about the source (archive, sanctions). */
   caution?: React.ReactNode;
   /** Extra line at the bottom, e.g. the fact-checker's rating. */
   footer?: React.ReactNode;

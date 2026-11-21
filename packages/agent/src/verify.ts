@@ -63,6 +63,8 @@ export type VerifyMetrics = {
   pages: { fetched: number; failed: number };
   /** Koszt wywołań modelu w USD. Uzupełnia go wywołujący, gdy zna cennik modelu. */
   costUsd?: number;
+  /** Wersja korpusu, na której wykonano sprawdzenie. Uzupełnia ją wywołujący. */
+  corpusVersion?: string;
 };
 
 export function emptyMetrics(): VerifyMetrics {
@@ -265,9 +267,6 @@ function postProcess(
         `Materiał archiwalny: „${e.title}” (${e.publishedAt.slice(0, 10)}). Może być nieaktualny.`,
       );
     }
-  }
-  if (evidence.some((e) => e.isMock)) {
-    warnings.push('Część dowodów pochodzi z danych testowych (mock), a nie z prawdziwych źródeł.');
   }
 
   return {

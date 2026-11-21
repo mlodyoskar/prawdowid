@@ -52,12 +52,11 @@ const corpusHit: SourceResult = {
       kind: 'corpus',
       title: 'MON dementuje informacje o przywróceniu poboru',
       publisher: 'MON',
-      url: 'mock://mon.gov.pl/pobor',
+      url: 'https://www.gov.pl/web/obrona-narodowa/pobor',
       publishedAt: '2026-11-07',
       fetchedAt: '2026-11-21T00:00:00Z',
       excerpt: 'Ministerstwo nie prowadzi prac nad przywróceniem poboru.',
       sourceType: 'primary',
-      isMock: true,
     },
   ],
 };
@@ -96,9 +95,8 @@ test('dowody z narzędzi trafiają do odpowiedzi, nieznane id są odrzucane', as
   if (response.status !== 'ok') return;
   assert.equal(response.claims[0]?.verdict, 'fałszywe');
   assert.deepEqual(response.claims[0]?.evidenceIds, ['doc_1']);
-  assert.equal(response.evidence[0]?.url, 'mock://mon.gov.pl/pobor');
+  assert.equal(response.evidence[0]?.url, 'https://www.gov.pl/web/obrona-narodowa/pobor');
   assert.ok(response.warnings.some((w) => w.includes('doc_99')));
-  assert.ok(response.warnings.some((w) => w.includes('mock')));
   assert.equal(metrics.toolCalls.search_corpus, 1);
 });
 

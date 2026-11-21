@@ -77,13 +77,9 @@ test('statusy techniczne: „To nie jest werdykt” i żadnej etykiety werdyktu'
   }
 });
 
-test('dokument mockowy jest oznaczony, a mock:// nie jest linkiem', () => {
-  const text = formatReply(
-    ok({ evidence: [evidence({ isMock: true, url: 'mock://mon/1' })] }),
-    ORIGIN,
-  );
-  assert.ok(text.includes('Dane demonstracyjne – to nie jest prawdziwa publikacja.'));
-  assert.ok(!text.includes('mock://'));
+test('adres spoza http(s) nie jest wypisywany jako link', () => {
+  const text = formatReply(ok({ evidence: [evidence({ url: 'javascript:alert(1)' })] }), ORIGIN);
+  assert.ok(!text.includes('javascript:'));
 });
 
 test('brak dowodów: uczciwe wstrzymanie się i ostrzeżenie przed udostępnianiem', () => {

@@ -63,7 +63,6 @@ function evidenceBlock(e: Evidence, quote: string | undefined): string {
   const lines = [`Źródło: ${truncate(e.title, 160)}${meta ? ` (${meta})` : ''}`];
   if (e.rating) lines.push(`Ocena fact-checkera: ${e.rating}`);
   if (quote) lines.push(`„${truncate(quote, 300)}”`);
-  if (e.isMock) lines.push('Dane demonstracyjne – to nie jest prawdziwa publikacja.');
   if (isWebUrl(e.url)) lines.push(e.url);
   return lines.join('\n');
 }

@@ -50,6 +50,14 @@ log('research_mode', { mode: env.RESEARCH_MODE });
 
 mkdirSync(dirname(env.CHECKS_DB_PATH), { recursive: true });
 const corpus = openCorpus(env.CORPUS_DB_PATH);
+const corpusInfo = corpus.info();
+if (corpusInfo.documents === 0) {
+  log(
+    'corpus_empty',
+    { path: env.CORPUS_DB_PATH, hint: 'pnpm --filter @prawdowid/sources seed' },
+    'warn',
+  );
+}
 const store = new SqliteJobStore(env.CHECKS_DB_PATH);
 
 const interrupted = store.failInterrupted(new Date());
@@ -96,7 +104,14 @@ const runner = new JobRunner({
       },
     );
     const costUsd = estimateCostUsd(result.metrics.usage, price);
-    return costUsd === undefined ? result : { ...result, metrics: { ...result.metrics, costUsd } };
+    return {
+      ...result,
+      metrics: {
+        ...result.metrics,
+        ...(costUsd === undefined ? {} : { costUsd }),
+        ...(corpusInfo.version === null ? {} : { corpusVersion: corpusInfo.version }),
+      },
+    };
   },
   // Log bez treści pytania (minimalizacja danych).
   onDone: (checkId, { response, metrics }) => {
@@ -182,7 +197,8 @@ const app = createApp({
   llmConfigured: model !== null,
   health: () => ({
     factchecks: Boolean(env.GOOGLE_FACTCHECK_API_KEY),
-    corpusDocuments: corpus.count(),
+    corpusDocuments: corpusInfo.documents,
+    corpusVersion: corpusInfo.version,
   }),
   webOrigin: env.WEB_ORIGIN,
   clientKey,
@@ -195,7 +211,12 @@ const app = createApp({
 });
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) =>
-  log('server_started', { port: info.port, corpusDocuments: corpus.count() }),
+  log('server_started', {
+    port: info.port,
+    corpusDocuments: corpusInfo.documents,
+    corpusFragments: corpusInfo.fragments,
+    corpusVersion: corpusInfo.version,
+  }),
 );
 
 const shutdown = async () => {

@@ -45,6 +45,6 @@ Wynik nie zależy od zakodowanych przykładów: zapytania z `zadania.md` służ�
 
 - Wszystko, co widzi użytkownik, jest po polsku. Kod może być po angielsku.
 - Kształt danych między pakietami definiują schematy zod w `packages/contracts`.
-- Lista źródeł jest tylko w [data/sources.ts](data/sources.ts). Dokumenty `isMock` nie są prezentowane jako prawdziwe źródła.
+- Lista źródeł jest tylko w [data/sources.ts](data/sources.ts). Korpus zawiera wyłącznie prawdziwe dokumenty ze snapshotu; dane testowe żyją w samych testach, nie w plikach danych.
 - Awaria każdej zewnętrznej zależności (LLM, Google Fact Check, OCR) ma test sprawdzający, że zwraca `status`, a nie werdykt.
 - Przed zakończeniem pracy: `pnpm check`.

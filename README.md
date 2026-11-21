@@ -10,7 +10,7 @@ Wyzwanie MSZ na HackNation 2026.
 
 | Ścieżka                                  | Zawartość                                                                                           |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [apps/web](apps/web)                     | Frontend WWW                                                                                        |
+| [apps/web](apps/web)                     | Frontend WWW (Vite, React, Tailwind, shadcn/ui) i design system w `src/ui`                          |
 | [apps/api](apps/api)                     | HTTP API (Hono): zadania asynchroniczne, walidacja, zapis przebiegu, wybór modelu; woła `verify()`  |
 | [packages/contracts](packages/contracts) | Wspólne schematy zod i typy: `Verdict`, `ClaimResult`, `Evidence`, `CheckRequest`/`CheckResponse`   |
 | [packages/agent](packages/agent)         | Logika weryfikacji: `verify()` i narzędzia AI SDK; model dowolnego dostawcy wstrzykiwany z zewnątrz |
@@ -45,6 +45,7 @@ Uzupełnij w `.env` co najmniej `LLM_BASE_URL`, `LLM_API_KEY` i `LLM_MODEL` (dow
 ```bash
 pnpm --filter @prawdowid/sources seed   # korpus z danymi mockowymi → data/corpus.db
 pnpm --filter @prawdowid/api dev        # API na http://localhost:3000
+pnpm --filter @prawdowid/web dev        # strona na http://localhost:5173
 ```
 
 ### API
@@ -69,6 +70,18 @@ Zabezpieczenia: URL-e z tekstu (maksymalnie 2) są pobierane z ochroną SSRF i t
 
 > ⚠️ Korpus zawiera na razie wyłącznie dane mockowe (URL-e `mock://…`, flaga `isMock`). Przed demem trzeba je zastąpić prawdziwymi dokumentami.
 
+### Frontend
+
+Jedna strona w stylu gov.pl: formularz (tekst, link albo zdjęcie), postęp i wynik pod formularzem, bez przechodzenia między widokami. Strona wysyła `POST /api/checks` i odpytuje `GET /api/checks/:checkId`; id sprawdzenia trafia do adresu (`?check=…`), więc wynik można odświeżyć i udostępnić. Adres API ustawia `VITE_API_URL` w głównym `.env` (domyślnie `http://localhost:3000`).
+
+Design system jest w [apps/web/src/ui](apps/web/src/ui), a jego katalog pod adresem `/design` (z przełącznikiem motywu jasny/ciemny):
+
+- `tokens.css`: tokeny z makiet (kolory w obu motywach przez `light-dark()`), a `styles.css` mapuje je na motyw Tailwind (`bg-surface`, `text-ink-muted`, `text-title-1`…) i na nazwy shadcn/ui.
+- `base/`: komponenty shadcn/ui (Button, Textarea, Label, Badge, Alert, Separator, Accordion) przestylowane pod gov.pl. Nowe dodaje `pnpm dlx shadcn@latest add <nazwa>` w `apps/web`.
+- Obok: komponenty Prawdowid, np. `VerdictBadge`, `ClaimCard`, `SourceCard`, `StrengthMeter`, `Notice`, `Steps`, `SummaryBanner`, `AppHeader`.
+
+Zasady z makiet: werdykt zawsze ma ikonę i słowo; komunikat systemowy (awaria, limit) nigdy nie wygląda jak werdykt; czerwony akcent tylko w nagłówku.
+
 ## Praca z repo
 
 | Polecenie                           | Co robi                                         |
@@ -78,6 +91,7 @@ Zabezpieczenia: URL-e z tekstu (maksymalnie 2) są pobierane z ochroną SSRF i t
 | `pnpm lint` / `pnpm lint:fix`       | Lint (oxlint z regułami korzystającymi z typów) |
 | `pnpm typecheck`                    | TypeScript w każdym projekcie                   |
 | `pnpm test`                         | Testy (`node --test`, pliki `*.test.ts`)        |
+| `pnpm build`                        | Build produkcyjny frontendu (`apps/web/dist`)   |
 
 Konfiguracja:
 

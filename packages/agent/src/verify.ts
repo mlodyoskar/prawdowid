@@ -63,6 +63,8 @@ export type VerifyMetrics = {
   pages: { fetched: number; failed: number };
   /** Koszt wywołań modelu w USD. Uzupełnia go wywołujący, gdy zna cennik modelu. */
   costUsd?: number;
+  /** Wersja korpusu, na której wykonano sprawdzenie. Uzupełnia ją wywołujący. */
+  corpusVersion?: string;
 };
 
 export function emptyMetrics(): VerifyMetrics {

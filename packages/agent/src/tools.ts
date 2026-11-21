@@ -11,7 +11,11 @@ const MAX_RESULTS_PER_CALL = 8;
 /** Źródła, z których korzysta agent. Wstrzykiwane, żeby testować bez sieci i bazy. */
 export type AgentSources = {
   factchecks: (query: { query: string; languageCode: 'pl' | 'en' }) => Promise<SourceResult>;
-  corpus: { search: (query: string, options?: { limit?: number }) => SourceResult };
+  corpus: {
+    search: (query: string, options?: { limit?: number }) => SourceResult;
+    /** Kolejne fragmenty jednego dokumentu. Tryb `plan` doczytuje nimi dokument, który nie rozstrzygnął. */
+    fragments?: (url: string, options?: { limit?: number }) => SourceResult;
+  };
 };
 
 export type ToolName = 'search_factchecks' | 'search_corpus';
@@ -25,10 +29,19 @@ export class EvidenceRegistry {
   readonly injectionSignals: InjectionSignal[] = [];
   #counters = { fc: 0, doc: 0 };
 
-  /** Nadaje trafieniu id. To samo URL w jednym sprawdzeniu dostaje to samo id. */
+  /**
+   * Nadaje trafieniu id. Ten sam materiał w jednym sprawdzeniu dostaje to samo id.
+   * Różne fragmenty jednego dokumentu to osobne materiały: każdy ma własną treść do cytowania.
+   */
   register(hit: SourceHit): Evidence {
     for (const existing of this.byId.values()) {
-      if (existing.url === hit.url && existing.kind === hit.kind) return existing;
+      if (
+        existing.url === hit.url &&
+        existing.kind === hit.kind &&
+        existing.fragmentId === hit.fragmentId
+      ) {
+        return existing;
+      }
     }
     const prefix = hit.kind === 'factcheck' ? 'fc' : 'doc';
     const id = `${prefix}_${++this.#counters[prefix]}`;

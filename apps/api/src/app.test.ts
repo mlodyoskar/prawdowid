@@ -13,7 +13,7 @@ function setup(over: Partial<AppDeps> = {}) {
     webOrigin: 'http://localhost:5173',
     clientKey: (c) => c.req.header('x-test-client') ?? 'anon',
     rateLimit: { postPerMinute: 100, getPerMinute: 100 },
-    health: () => ({ factchecks: false, corpusDocuments: 18 }),
+    health: () => ({ factchecks: false, corpusDocuments: 18, corpusVersion: 'test' }),
     store: { get: (id) => jobs.get(id) },
     runner: {
       stats: { queued: 0, running: 0 },

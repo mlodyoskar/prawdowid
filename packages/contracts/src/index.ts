@@ -60,6 +60,8 @@ export const Evidence = z.object({
   publishedAt: z.string().nullable(),
   fetchedAt: z.string().nullable(),
   excerpt: z.string(),
+  /** Fragment dokumentu z korpusu, z którego pochodzi `excerpt` (jeden dokument może dać kilka). */
+  fragmentId: z.string().optional(),
   /** Ocena fact-checkera (textualRating), tylko dla kind = factcheck. */
   rating: z.string().optional(),
   sourceType: SourceType.optional(),

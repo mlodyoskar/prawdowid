@@ -1,7 +1,8 @@
 /**
- * Wypełnia korpus danymi mockowymi z `data/corpus.mock.json`.
+ * Dopisuje do korpusu dane mockowe z `data/corpus.mock.json` (do pracy lokalnej i pokazów).
  * Mocki mają URL-e `mock://…` i flagę `is_mock`, więc nigdy nie udają prawdziwego źródła.
- * Użycie: pnpm --filter @prawdowid/sources seed   (ścieżka z CORPUS_DB_PATH, domyślnie data/corpus.db w katalogu repo)
+ * Prawdziwy korpus buduje `seed` (scripts/import-corpus.ts); wdrożenie nie ładuje mocków.
+ * Użycie: pnpm --filter @prawdowid/sources seed:mock   (ścieżka z CORPUS_DB_PATH, domyślnie data/corpus.db w katalogu repo)
  */
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

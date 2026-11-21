@@ -15,7 +15,7 @@ export type AppDeps = {
   store: Pick<JobStore, 'get'>;
   /** Brak modelu = brak konfiguracji LLM: nie przyjmujemy zadań. */
   llmConfigured: boolean;
-  health: () => { factchecks: boolean; corpusDocuments: number };
+  health: () => { factchecks: boolean; corpusDocuments: number; corpusVersion: string | null };
   webOrigin: string;
   /** Identyfikuje klienta do limitowania żądań (zwykle IP). */
   clientKey: (c: Context) => string;

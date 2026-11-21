@@ -22,6 +22,10 @@ export type FetchStrategy =
 export type Source = {
   name: string;
   url: string;
+  /** `zrodlo_id`, pod którym źródło występuje w snapshocie korpusu. Import odrzuca id spoza katalogu. */
+  corpusId?: string;
+  /** Warunki ponownego wykorzystania treści, tak jak podaje je serwis. Wymagane przy `corpusId`. */
+  licence?: string;
   kind: SourceKind;
   strategy: FetchStrategy;
   feeds?: readonly string[];
@@ -37,6 +41,17 @@ const ODYSEUSZ_API = [
   'https://odyseusz.gov.pl/api/v1/informacje/profile-panstw/{kodISO}',
   'https://odyseusz.gov.pl/api/v1/informacje/strona-glowna/baner-sytuacje-kryzysowe',
 ] as const;
+// Warunki wykorzystania sprawdzone 2026-11-21 na stronach serwisów (stopka, nota prawna, regulamin).
+const LICENCE_GOVPL =
+  'CC BY-SA 4.0 dla treści tekstowych (stopka gov.pl); zdjęcia i wideo: CC BY-NC-ND 4.0.';
+const LICENCE_POLICJA =
+  'Brak nazwanej licencji. Nota prawna policja.pl: wykorzystanie materiałów z podaniem źródła.';
+const LICENCE_POLICJA_UNIT =
+  'Nie sprawdzono osobno dla tego serwisu jednostki. Dla policja.pl: wykorzystanie z podaniem źródła.';
+const LICENCE_CERT =
+  '© NASK, wszystkie prawa zastrzeżone (stopka moje.cert.pl). Brak licencji na ponowne wykorzystanie.';
+const LICENCE_RSO =
+  'Brak licencji. Dane XML opisane jako dostępne publicznie (komunikaty.tvp.pl/Info/Integration).';
 const IMPERVA_BLOCKED = 'Imperva/Incapsula zwraca stronę z wyzwaniem JS zamiast treści.';
 
 export const SOURCES = [
@@ -51,6 +66,8 @@ export const SOURCES = [
   },
   {
     name: 'Ostrzeżenia gov.pl',
+    corpusId: 'rso',
+    licence: LICENCE_RSO,
     url: 'https://www.gov.pl/web/gov/ostrzezenia',
     kind: 'news',
     strategy: 'json-api',
@@ -81,12 +98,16 @@ export const SOURCES = [
   },
   {
     name: 'KG PSP – aktualności',
+    corpusId: 'govpl-kgpsp',
+    licence: LICENCE_GOVPL,
     url: 'https://www.gov.pl/web/kgpsp/aktualnosci',
     kind: 'news',
     strategy: 'govpl-list',
   },
   {
     name: 'Policja – aktualności',
+    corpusId: 'policja-kgp',
+    licence: LICENCE_POLICJA,
     url: 'https://policja.pl/pol/aktualnosci',
     kind: 'news',
     strategy: 'rss',
@@ -97,6 +118,9 @@ export const SOURCES = [
   },
   {
     name: 'KSP Mazowiecka – aktualności',
+    corpusId: 'policja-mazowiecka',
+    licence:
+      'Brak nazwanej licencji. Strona „Prawa autorskie”: korzystanie nie wymaga zgody KGP, z podaniem źródła.',
     url: 'https://mazowiecka.policja.gov.pl/ra/aktualnosci/aktualnosci',
     kind: 'news',
     strategy: 'rss',
@@ -106,19 +130,85 @@ export const SOURCES = [
     ],
   },
   {
+    name: 'Policja – KWP Wrocław',
+    corpusId: 'wroclaw-policja-gov-pl',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://wroclaw.policja.gov.pl/',
+    kind: 'news',
+    strategy: 'html',
+    notes:
+      'Dodane przy imporcie snapshotu v3: dokumenty z tego serwisu są w korpusie. Do potwierdzenia przez autora scrapera.',
+  },
+  {
+    name: 'Policja – CBZC',
+    corpusId: 'cbzc-policja-gov-pl',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://cbzc.policja.gov.pl/',
+    kind: 'news',
+    strategy: 'html',
+    notes:
+      'Dodane przy imporcie snapshotu v3: dokumenty z tego serwisu są w korpusie. Do potwierdzenia przez autora scrapera.',
+  },
+  {
+    name: 'Policja – CBŚP',
+    corpusId: 'cbsp-policja-pl',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://cbsp.policja.pl/',
+    kind: 'news',
+    strategy: 'html',
+    notes:
+      'Dodane przy imporcie snapshotu v3: dokumenty z tego serwisu są w korpusie. Do potwierdzenia przez autora scrapera.',
+  },
+  {
+    name: 'Policja – KWP Kraków',
+    corpusId: 'malopolska-policja-gov-pl',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://malopolska.policja.gov.pl/',
+    kind: 'news',
+    strategy: 'html',
+    notes:
+      'Dodane przy imporcie snapshotu v3: dokumenty z tego serwisu są w korpusie. Do potwierdzenia przez autora scrapera.',
+  },
+  {
+    name: 'Policja – KWP Gorzów Wielkopolski',
+    corpusId: 'lubuska-policja-gov-pl',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://lubuska.policja.gov.pl/',
+    kind: 'news',
+    strategy: 'html',
+    notes:
+      'Dodane przy imporcie snapshotu v3: dokumenty z tego serwisu są w korpusie. Do potwierdzenia przez autora scrapera.',
+  },
+  {
+    name: 'Policja – KWP Bydgoszcz',
+    corpusId: 'kujawsko-pomorska-policja-gov-pl',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://kujawsko-pomorska.policja.gov.pl/',
+    kind: 'news',
+    strategy: 'html',
+    notes:
+      'Dodane przy imporcie snapshotu v3: dokumenty z tego serwisu są w korpusie. Do potwierdzenia przez autora scrapera.',
+  },
+  {
     name: 'MON – aktualności',
+    corpusId: 'govpl-obrona-narodowa',
+    licence: LICENCE_GOVPL,
     url: 'https://www.gov.pl/web/obrona-narodowa/aktualnosci5',
     kind: 'news',
     strategy: 'govpl-list',
   },
   {
     name: 'GIS – ostrzeżenia',
+    corpusId: 'govpl-gis',
+    licence: LICENCE_GOVPL,
     url: 'https://www.gov.pl/web/gis/ostrzezenia',
     kind: 'news',
     strategy: 'govpl-list',
   },
   {
     name: 'Państwowa Agencja Atomistyki',
+    corpusId: 'govpl-paa',
+    licence: LICENCE_GOVPL,
     url: 'https://www.gov.pl/web/paa/panstwowa-agencja-atomistyki',
     kind: 'reference',
     strategy: 'govpl-page',
@@ -145,6 +235,8 @@ export const SOURCES = [
   },
   {
     name: 'CERT Polska – komunikaty',
+    corpusId: 'cert-polska',
+    licence: LICENCE_CERT,
     url: 'https://moje.cert.pl/komunikaty/',
     kind: 'news',
     strategy: 'rss',
@@ -158,6 +250,8 @@ export const SOURCES = [
   },
   {
     name: 'MI – aktualności',
+    corpusId: 'govpl-infrastruktura',
+    licence: LICENCE_GOVPL,
     url: 'https://www.gov.pl/web/infrastruktura/aktualnosci',
     kind: 'news',
     strategy: 'govpl-list',
@@ -319,11 +413,20 @@ export const SOURCES = [
   },
   {
     name: 'Rządowe Centrum Bezpieczeństwa',
+    corpusId: 'govpl-rcb',
+    licence: LICENCE_GOVPL,
     url: 'https://www.gov.pl/web/rcb/strona-glowna-rzadowego-centrum-bezpieczenstwa',
     kind: 'reference',
     strategy: 'govpl-page',
   },
-  { name: 'MSWiA', url: 'https://www.gov.pl/web/mswia', kind: 'reference', strategy: 'govpl-page' },
+  {
+    name: 'MSWiA',
+    corpusId: 'govpl-mswia',
+    licence: LICENCE_GOVPL,
+    url: 'https://www.gov.pl/web/mswia',
+    kind: 'reference',
+    strategy: 'govpl-page',
+  },
   {
     name: 'MSZ – informacje dla podróżujących',
     url: 'https://www.gov.pl/web/dyplomacja/informacje-dla-podrozujacych',
@@ -334,11 +437,25 @@ export const SOURCES = [
   },
   {
     name: 'Kancelaria Premiera',
+    corpusId: 'govpl-premier',
+    licence: LICENCE_GOVPL,
     url: 'https://www.gov.pl/web/premier',
     kind: 'reference',
     strategy: 'govpl-page',
   },
 ] as const satisfies readonly Source[];
+
+/** Źródła, z których wolno importować dokumenty do korpusu: `corpusId` → warunki wykorzystania. */
+export function corpusSources(): Map<string, { name: string; licence: string }> {
+  const byId = new Map<string, { name: string; licence: string }>();
+  for (const source of SOURCES as readonly Source[]) {
+    if (source.corpusId === undefined) continue;
+    if (!source.licence) throw new Error(`Źródło „${source.name}” ma corpusId bez pola licence`);
+    if (byId.has(source.corpusId)) throw new Error(`Powtórzone corpusId: ${source.corpusId}`);
+    byId.set(source.corpusId, { name: source.name, licence: source.licence });
+  }
+  return byId;
+}
 
 /** Baza weryfikatorów */
 export const FACT_CHECK_SOURCES = [

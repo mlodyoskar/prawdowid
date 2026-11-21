@@ -272,6 +272,125 @@ test('runda poprawy: nowe zapytanie znajduje dowód i sędzia ocenia ponownie', 
   assert.equal(metrics.refinedClaims, 1);
 });
 
+const UNDECIDED = {
+  items: [
+    {
+      id: 'doc_1',
+      relation: 'direct',
+      stance: 'context',
+      quote: 'Ministerstwo nie prowadzi prac nad przywróceniem poboru',
+      addressesModel: false,
+    },
+  ],
+  verdict: 'brak wystarczających dowodów',
+  explanation: 'MON pisze o poborze, ale nie podaje liczby powołanych.',
+  unknowns: ['Ilu rezerwistów powołano.'],
+  limitations: '',
+};
+
+const restOfDocument: SourceResult = {
+  ok: true,
+  items: [
+    'Komunikat w sprawie ćwiczeń rezerwy.',
+    'W 2026 roku na ćwiczenia powołano 200 tys. osób.',
+  ].map((excerpt, i) => ({
+    ...corpusHit.items[0]!,
+    excerpt,
+    fragmentId: `doc-7-f0${i + 2}`,
+  })),
+};
+
+test('doczytanie: dokument dotyczy twierdzenia, ale odpowiedź jest w innym fragmencie', async () => {
+  let judged = 0;
+  const { model, calls } = stagedModel({
+    extract: extraction([{ text: 'W 2026 roku na ćwiczenia powołano 20 tys. osób.' }]),
+    judge: () =>
+      ++judged === 1
+        ? UNDECIDED
+        : {
+            items: [
+              {
+                id: 'doc_3',
+                relation: 'direct',
+                stance: 'refutes',
+                quote: 'na ćwiczenia powołano 200 tys. osób',
+                addressesModel: false,
+              },
+            ],
+            verdict: 'fałszywe',
+            explanation: 'Według MON powołano 200 tys. osób, a nie 20 tys.',
+            unknowns: [],
+            limitations: '',
+          },
+  });
+  const { deps: d } = deps(model);
+  const read: string[] = [];
+  d.corpus.fragments = (url) => {
+    read.push(url);
+    return restOfDocument;
+  };
+  const { response, metrics } = await verifyPlanned({ text: 'x' }, d, { checkId: 'x' });
+
+  assert.equal(response.status, 'ok');
+  if (response.status !== 'ok') return;
+  assert.equal(response.claims[0]?.verdict, 'fałszywe');
+  assert.deepEqual(response.claims[0]?.evidenceUse, [
+    { id: 'doc_3', stance: 'refutes', quote: 'na ćwiczenia powołano 200 tys. osób' },
+  ]);
+  assert.equal(response.evidence.find((e) => e.id === 'doc_3')?.fragmentId, 'doc-7-f03');
+  assert.deepEqual(read, ['https://www.gov.pl/web/obrona-narodowa/pobor']);
+  assert.deepEqual(
+    calls.map((c) => c.stage),
+    ['extract', 'judge', 'judge'],
+  );
+  assert.equal(metrics.deepenedClaims, 1);
+  assert.equal(metrics.refinedClaims, 0);
+});
+
+test('doczytanie, które niczego nie rozstrzyga, zostawia pierwszą ocenę', async () => {
+  let judged = 0;
+  const { model, calls } = stagedModel({
+    extract: extraction([{}]),
+    judge: () => (++judged === 1 ? UNDECIDED : NOTHING),
+  });
+  const { deps: d } = deps(model);
+  d.corpus.fragments = () => restOfDocument;
+  const { response, metrics } = await verifyPlanned({ text: 'x' }, d, { checkId: 'x' });
+
+  assert.equal(response.status, 'ok');
+  if (response.status !== 'ok') return;
+  assert.equal(response.claims[0]?.verdict, 'brak wystarczających dowodów');
+  assert.deepEqual(
+    response.claims[0]?.evidenceUse?.map((u) => u.id),
+    ['doc_1'],
+  );
+  assert.deepEqual(response.claims[0]?.unknowns, ['Ilu rezerwistów powołano.']);
+  assert.ok(calls[2]?.prompt.includes('powołano 200 tys. osób'));
+  assert.equal(metrics.deepenedClaims, 1);
+});
+
+test('doczytanie po czasie albo przy awarii korpusu: zostaje pierwsza ocena', async () => {
+  const late = stagedModel({ extract: extraction([{}]), judge: UNDECIDED });
+  const lateDeps = deps(late.model).deps;
+  lateDeps.corpus.fragments = () => restOfDocument;
+  const first = await verifyPlanned({ text: 'x' }, lateDeps, { checkId: 'x', deepenBudgetMs: 0 });
+  assert.equal(late.calls.length, 2);
+  assert.equal(first.metrics.deepenedClaims, 0);
+
+  const broken = stagedModel({ extract: extraction([{}]), judge: UNDECIDED });
+  const brokenDeps = deps(broken.model).deps;
+  brokenDeps.corpus.fragments = () => ({ ok: false, reason: 'unavailable', message: 'Błąd.' });
+  const second = await verifyPlanned({ text: 'x' }, brokenDeps, { checkId: 'x' });
+  assert.equal(broken.calls.length, 2);
+  assert.equal(second.response.status, 'ok');
+  if (second.response.status !== 'ok') return;
+  assert.equal(second.response.claims[0]?.verdict, 'brak wystarczających dowodów');
+  assert.match(
+    second.response.claims[0]?.limitations ?? '',
+    /Korpus dokumentów urzędowych: Błąd\./,
+  );
+});
+
 test('runda poprawy wyłączona albo po czasie: bez dodatkowych wywołań', async () => {
   const replies = { extract: extraction([{}]), judge: NOTHING };
   const off = stagedModel(replies);

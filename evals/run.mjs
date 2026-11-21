@@ -29,6 +29,7 @@ const { values: v } = parseArgs({
     model: { type: 'string', default: 'anthropic/claude-haiku-5.5' },
     repeat: { type: 'string', default: '3' },
     only: { type: 'string' },
+    ids: { type: 'string' },
     'held-out': { type: 'boolean' },
     workers: { type: 'string', default: '4' },
   },
@@ -42,12 +43,13 @@ if (
   throw Error('Invalid mode, repeat or workers');
 const read = (p) => readFileSync(p, 'utf8');
 const cases = read('evals/cases.jsonl').trim().split('\n').map(JSON.parse);
-const requested = cases.filter(
-  (c) =>
-    Boolean(v['held-out']) === c.heldOut &&
-    (!v.only ||
-      v.only.split(',').includes(c.scenario) ||
-      (c.channel && v.only.split(',').includes('G'))),
+const requested = cases.filter((c) =>
+  v.ids
+    ? v.ids.split(',').includes(c.id)
+    : Boolean(v['held-out']) === c.heldOut &&
+      (!v.only ||
+        v.only.split(',').includes(c.scenario) ||
+        (c.channel && v.only.split(',').includes('G'))),
 );
 const controls = new Set(requested.map((c) => c.baseline));
 const selected = cases.filter((c) => requested.includes(c) || controls.has(c.id));

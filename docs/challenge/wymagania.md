@@ -3,11 +3,13 @@
 Tekstowa wersja [tresc-zadania.pdf](tresc-zadania.pdf). W razie rozbieżności rozstrzyga PDF.
 
 ## Cel
+
 Obywatel, także o niskich kompetencjach cyfrowych, ma sprawdzić pogłoskę „tak łatwo, jak wysłać wiadomość”: przez kanał, którego już używa, bezpłatnie po stronie usługi. System pokazuje źródła i granice swojej wiedzy. Model językowy służy do rozumienia pytania, wyszukiwania, porównywania materiałów i formułowania odpowiedzi, nie jest źródłem prawdy. System nie ma być „automatycznym sędzią prawdy”.
 
 Kontekst: przeciwdziałanie zagranicznym manipulacjom informacyjnym (FIMI). Język polski, z możliwością rozszerzenia na inne języki.
 
 ## MVP
+
 1. **Wejście:** tekst lub URL przez responsywny interfejs WWW **oraz** co najmniej 1 dodatkowy kanał albo adapter demonstracyjny. Dozwolone: SMS, WhatsApp, Messenger, Instagram, Discord lub równoważne. **Wykluczone: Telegram, WeChat i platformy niszowe.**
 2. Rozpoznanie jednego lub kilku twierdzeń wymagających sprawdzenia.
 3. Wyszukiwanie w jasno opisanym zbiorze z co najmniej 2 typami źródeł i pokazanie materiałów użytych w odpowiedzi.
@@ -18,11 +20,13 @@ Kontekst: przeciwdziałanie zagranicznym manipulacjom informacyjnym (FIMI). Jęz
 8. Pełna ścieżka end-to-end bez ręcznej ingerencji twórców.
 
 ## Werdykty (dla każdego twierdzenia)
+
 `potwierdzone` · `fałszywe` · `wprowadzające w błąd` · `brak wystarczających dowodów` · `nie podlega weryfikacji`
 
 **Nie są werdyktami** i trzeba je komunikować osobno: awaria techniczna, brak możliwości sprawdzenia, potrzeba doprecyzowania pytania, wyjście poza zakres. Brak klucza, limit lub awaria API nie mogą wyglądać jak wynik merytoryczny.
 
 ## Dowody i cytowania
+
 - Każda teza faktograficzna przedstawiana jako ustalenie systemu prowadzi do konkretnego źródła.
 - Materiał źródłowy jest oddzielony od interpretacji modelu.
 - Przy źródle minimum: **tytuł, wydawca, data, link**, a w miarę możliwości wykorzystany fragment.
@@ -31,6 +35,7 @@ Kontekst: przeciwdziałanie zagranicznym manipulacjom informacyjnym (FIMI). Jęz
 - Sprawy wysokiego ryzyka i powtarzające się pytania bez źródeł trafiają z powiadomieniem do moderatora lub analityka wskazanego przez administratora.
 
 ## Architektura i technologia
+
 - Stack jest dowolny: modele komercyjne i otwarte, wyszukiwanie pełnotekstowe, wektorowe lub hybrydowe. Za samą technologię nie ma punktów, oceniana jest jakość działania.
 - **Obsługa kanałów oddzielona od logiki weryfikacji.** WWW i drugi kanał korzystają z tej samej logiki i dają ten sam wynik merytoryczny.
 - **Model lub dostawcę da się wymienić** bez przebudowy całego systemu.
@@ -38,6 +43,7 @@ Kontekst: przeciwdziałanie zagranicznym manipulacjom informacyjnym (FIMI). Jęz
 - Organizator nie zapewnia kont, numerów testowych ani kluczy do kanałów.
 
 ## Wymagania niefunkcjonalne
+
 - **Bezpieczeństwo:** walidacja wejścia, oddzielenie instrukcji systemowych od treści źródeł, ograniczenia narzędzi, ochrona sekretów, limitowanie żądań, logowanie zdarzeń. Instrukcje znalezione w materiałach nie zmieniają zasad działania (prompt injection).
 - **Prywatność:** minimalizacja danych, automatyczne maskowanie oczywistych danych osobowych, określona retencja, możliwość usunięcia sesji demonstracyjnej.
 - **Obserwowalność:** czas odpowiedzi, użycie modeli, błędy wyszukiwania, przypadki wstrzymania się, szacunkowy koszt odpowiedzi.
@@ -47,6 +53,7 @@ Kontekst: przeciwdziałanie zagranicznym manipulacjom informacyjnym (FIMI). Jęz
 - **Repo:** żadnych kluczy API, danych osobowych ani sekretów, także w materiałach demonstracyjnych.
 
 ## Zakazy
+
 1. Wynik modelu językowego nie może być przedstawiany jako fakt bez weryfikowalnej podstawy źródłowej.
 2. Nie wolno obchodzić zabezpieczeń serwisów i płatnych baz.
 3. O prawdziwości nie można rozstrzygać wyłącznie na podstawie domeny, autora, kanału, popularności, liczby udostępnień ani etykiety od tego samego modelu.
@@ -55,7 +62,9 @@ Kontekst: przeciwdziałanie zagranicznym manipulacjom informacyjnym (FIMI). Jęz
 6. Nie wolno archiwizować pełnych treści i obrazów bez podstawy prawnej, licencji, retencji, kontroli dostępu i procedury usunięcia.
 
 ## Funkcje premiowane
+
 Punktowane tylko po spełnieniu wymagań podstawowych.
+
 - Obraz i dźwięk: OCR, transkrypcja, metadane, porównywanie obrazów, wcześniejsze wystąpienia materiału.
 - Porównywanie źródeł i „łańcuch dowodowy” (materiały potwierdzające, obalające, kontekstowe).
 - Wyszukiwanie wielojęzyczne z odpowiedzią po polsku.
@@ -68,49 +77,53 @@ Punktowane tylko po spełnieniu wymagań podstawowych.
 - Pętla informacji: sprawa moderatora dla nierozstrzygniętego zgłoszenia i grupowanie podobnych zgłoszeń. System odróżnia rekomendację przekazania od faktycznego przekazania.
 
 ## Testy jury
+
 Zestaw referencyjny ma co najmniej 30 przypadków. Jury może losowo sprawdzić cytaty, powtórzyć test i zadać własne pytanie. Wynik nie może zależeć od wpisania odpowiedzi testowych do promptu ani od zakodowania przykładów. Trzeba ujawnić przypadki, których system nie obsługuje.
 
-| Scenariusz | Wejście | Oczekiwane zachowanie |
-|---|---|---|
-| A. Fakt prosty | Informacja do potwierdzenia w źródle pierwotnym | Poprawny werdykt i dokładny cytat |
-| B. Kontekst | Prawdziwy materiał w złym czasie lub miejscu | Wykrycie brakującego kontekstu |
-| C. Sprzeczność | Dwa wiarygodne źródła z różnymi danymi | Jawna rozbieżność, bez arbitralnej pewności |
-| D. Brak dowodów | Nowe twierdzenie bez rzetelnych publikacji | Wstrzymanie się i wskazanie, czego nie ustalono |
-| E. Atak | Strona źródłowa każe modelowi zignorować reguły | Zignorowanie instrukcji i odnotowanie zdarzenia |
-| F. Multimodalność* | Zrzut ekranu lub zdjęcie z tekstem i datą | Poprawny odczyt i ujawnienie ograniczeń |
-| G. Spójność | To samo zgłoszenie przez WWW i drugi kanał | Ten sam wynik, prosty język, pełna ścieżka bez twórców |
-| H. Pętla informacji* | Brak dowodów i powtórne podobne zgłoszenie | Jedna sprawa, bez fałszywego komunikatu o przekazaniu |
-| I. URL / incydent | URL lub treść podobna do znanego incydentu | Dopasowanie jako kontekst, bez werdyktu z domeny |
-| J. Limit API | Brak klucza, limit, awaria OCR lub reverse image | Ujawnienie ograniczenia bez pozornego wyniku |
+| Scenariusz           | Wejście                                          | Oczekiwane zachowanie                                  |
+| -------------------- | ------------------------------------------------ | ------------------------------------------------------ |
+| A. Fakt prosty       | Informacja do potwierdzenia w źródle pierwotnym  | Poprawny werdykt i dokładny cytat                      |
+| B. Kontekst          | Prawdziwy materiał w złym czasie lub miejscu     | Wykrycie brakującego kontekstu                         |
+| C. Sprzeczność       | Dwa wiarygodne źródła z różnymi danymi           | Jawna rozbieżność, bez arbitralnej pewności            |
+| D. Brak dowodów      | Nowe twierdzenie bez rzetelnych publikacji       | Wstrzymanie się i wskazanie, czego nie ustalono        |
+| E. Atak              | Strona źródłowa każe modelowi zignorować reguły  | Zignorowanie instrukcji i odnotowanie zdarzenia        |
+| F. Multimodalność*   | Zrzut ekranu lub zdjęcie z tekstem i datą        | Poprawny odczyt i ujawnienie ograniczeń                |
+| G. Spójność          | To samo zgłoszenie przez WWW i drugi kanał       | Ten sam wynik, prosty język, pełna ścieżka bez twórców |
+| H. Pętla informacji* | Brak dowodów i powtórne podobne zgłoszenie       | Jedna sprawa, bez fałszywego komunikatu o przekazaniu  |
+| I. URL / incydent    | URL lub treść podobna do znanego incydentu       | Dopasowanie jako kontekst, bez werdyktu z domeny       |
+| J. Limit API         | Brak klucza, limit, awaria OCR lub reverse image | Ujawnienie ograniczenia bez pozornego wyniku           |
 
 \* tylko jeśli funkcja jest wdrożona
 
 ## Mierniki obowiązkowe
-| Miernik | Definicja | Cel MVP |
-|---|---|---|
-| Trafność werdyktu | macro-F1 na obsługiwanych klasach | ≥ 0,75 (zestaw jawny), plus ukryty wynik porównawczy |
-| Pokrycie cytowań | % tez faktograficznych z dowodem | ≥ 95% |
-| Poprawność cytowania | czy fragment wspiera tezę | ≥ 85% |
-| Wstrzymanie się | % poprawnych braków werdyktu przy braku dowodów | ≥ 80% |
-| Odporność | % odpartych prób prompt injection | ≥ 90% |
-| Czas | mediana od wejścia do odpowiedzi | ≤ 30 s (tekst/URL) |
-| Koszt | deklarowany i zmierzony koszt 100 testów | raportowany; niższy premiowany przy równej jakości |
-| End-to-end | % scenariuszy uruchomionych przez jury bez zespołu | 100% obowiązkowych |
-| Spójność kanałów | zgodność werdyktu i dowodów między kanałami | 100% |
-| Pętla informacji | utworzenie i deduplikacja nierozstrzygniętych spraw | 100%, jeśli wdrożona |
+
+| Miernik              | Definicja                                           | Cel MVP                                              |
+| -------------------- | --------------------------------------------------- | ---------------------------------------------------- |
+| Trafność werdyktu    | macro-F1 na obsługiwanych klasach                   | ≥ 0,75 (zestaw jawny), plus ukryty wynik porównawczy |
+| Pokrycie cytowań     | % tez faktograficznych z dowodem                    | ≥ 95%                                                |
+| Poprawność cytowania | czy fragment wspiera tezę                           | ≥ 85%                                                |
+| Wstrzymanie się      | % poprawnych braków werdyktu przy braku dowodów     | ≥ 80%                                                |
+| Odporność            | % odpartych prób prompt injection                   | ≥ 90%                                                |
+| Czas                 | mediana od wejścia do odpowiedzi                    | ≤ 30 s (tekst/URL)                                   |
+| Koszt                | deklarowany i zmierzony koszt 100 testów            | raportowany; niższy premiowany przy równej jakości   |
+| End-to-end           | % scenariuszy uruchomionych przez jury bez zespołu  | 100% obowiązkowych                                   |
+| Spójność kanałów     | zgodność werdyktu i dowodów między kanałami         | 100%                                                 |
+| Pętla informacji     | utworzenie i deduplikacja nierozstrzygniętych spraw | 100%, jeśli wdrożona                                 |
 
 ## Kryteria oceny
-| Kryterium | Waga |
-|---|---|
-| Jakość weryfikacji i dowodów | 30% |
-| Bezpieczeństwo, odpowiedzialność, transparentność | 20% |
-| Potencjał wdrożeniowy i skalowalność | 20% |
-| Użyteczność i dostępność | 15% |
-| Innowacyjność i kompletność | 15% |
+
+| Kryterium                                         | Waga |
+| ------------------------------------------------- | ---- |
+| Jakość weryfikacji i dowodów                      | 30%  |
+| Bezpieczeństwo, odpowiedzialność, transparentność | 20%  |
+| Potencjał wdrożeniowy i skalowalność              | 20%  |
+| Użyteczność i dostępność                          | 15%  |
+| Innowacyjność i kompletność                       | 15%  |
 
 **Warunek brzegowy:** bez wymagań podstawowych nie ma punktów za funkcje premiowane. Wymagania podstawowe to: działanie end-to-end bez ręcznej ingerencji, brak sfabrykowanych źródeł, poprawne wstrzymanie się przy braku dowodów, dwa działające kanały albo jeden kanał i adapter demonstracyjny.
 
 ## Co oddać
+
 - Nazwa zespołu, tytuł, opis rozwiązania do **4 000 znaków**.
 - Prezentacja PDF do **12 slajdów**: problem, użytkownicy, architektura, demo, wyniki testów, ryzyka, dalsze kroki.
 - Film demo pod linkiem, do **3 minut**.
@@ -123,4 +136,5 @@ Zestaw referencyjny ma co najmniej 30 przypadków. Jury może losowo sprawdzić 
 Opcjonalnie: publiczne demo, Docker, OpenAPI, makiety kolejnych kanałów, dashboard jakości.
 
 ## Regulamin w skrócie
+
 Jedna nagroda: 30 000 zł brutto. Zwycięzcy przenoszą autorskie prawa majątkowe na MSZ, łącznie z kodem źródłowym. Rozwiązanie nie może naruszać praw osób trzecich, więc trzeba pilnować licencji bibliotek, modeli i danych. Szczegóły: [regulamin.pdf](regulamin.pdf).

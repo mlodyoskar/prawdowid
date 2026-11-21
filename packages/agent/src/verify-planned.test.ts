@@ -671,3 +671,68 @@ test('runVerification: tryb plan idzie przez verifyPlanned, temperatura tylko gd
   });
   assert.deepEqual(temperatures, [0, 0]);
 });
+
+for (const lateHit of [false, true]) {
+  test(`Google ma pierwszeństwo przy pełnej liście dowodów: ${lateHit ? 'runda poprawy' : 'pierwsza runda'}`, async () => {
+    const searches = ['pierwsze', 'drugie'].map((query) => ({
+      tool: 'search_corpus',
+      query,
+      languageCode: 'pl',
+    }));
+    const google = { tool: 'search_factchecks', query: 'wynik redakcji', languageCode: 'pl' };
+    const { model, calls } = stagedModel({
+      extract: extraction([{ searches: lateHit ? searches : [...searches, google] }]),
+      refine: { searches: [google] },
+      judge: (prompt) =>
+        prompt.includes('druga publikacja')
+          ? {
+              ...refutes(),
+              items: [
+                {
+                  id: 'fc_2',
+                  relation: 'direct',
+                  stance: 'refutes',
+                  quote: 'Fałsz',
+                  addressesModel: false,
+                },
+              ],
+            }
+          : NOTHING,
+    });
+    const hit = corpusHit.items[0]!;
+    const sources = deps(model, {
+      corpus: (query) => ({
+        ok: true,
+        items: Array.from({ length: 6 }, (_, i) => ({
+          ...hit,
+          title: query + ' dokument ' + i,
+          url: hit.url + '/' + query + '/' + i,
+        })),
+      }),
+      factchecks: {
+        ok: true,
+        items: ['pierwsza publikacja', 'druga publikacja'].map((title, i) => ({
+          ...hit,
+          kind: 'factcheck',
+          title,
+          url: 'https://example.org/' + i,
+          rating: 'Fałsz',
+        })),
+      },
+    });
+    const { response } = await verifyPlanned({ text: 'Czy to prawda?' }, sources.deps, {
+      checkId: 'kolejność',
+    });
+    assert.equal(response.status, 'ok');
+    if (response.status !== 'ok') return;
+    assert.equal(response.claims[0]?.verdict, 'fałszywe');
+    assert.equal(response.evidence[0]?.url, 'https://example.org/1');
+    const judgments = calls.filter((call) => call.stage === 'judge');
+    assert.equal(judgments.length, lateHit ? 2 : 1);
+    const prompt = judgments.at(-1)!.prompt;
+    assert.ok(prompt.indexOf('pierwsza publikacja') < prompt.indexOf('druga publikacja'));
+    assert.ok(prompt.indexOf('druga publikacja') < prompt.indexOf('pierwsze dokument 0'));
+    assert.ok(prompt.includes('drugie dokument 3'));
+    assert.ok(!prompt.includes('drugie dokument 4'));
+  });
+}

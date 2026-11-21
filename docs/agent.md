@@ -49,6 +49,8 @@ zgłoszenie
 
 Dwa wywołania modelu jedno po drugim w typowym przypadku, trzy przy doczytaniu, cztery przy rundzie poprawy.
 
+**Wybór dowodów w trybie plan.** Kod zbiera do sześciu trafień z każdego zapytania. Przy wyborze 12 fragmentów na twierdzenie pierwszeństwo mają wyniki Google Fact Check. Pozostałe miejsca zajmują fragmenty korpusu. W rundzie poprawy nowy fact-check może wyprzeć fragment korpusu. Sędzia sprawdza, czy dana publikacja dotyczy tego samego twierdzenia.
+
 **Doczytanie dokumentu.** Wyszukiwanie zwraca najwyżej dwa fragmenty z dokumentu, a o tym, które, decyduje dopasowanie słów, nie to, gdzie jest odpowiedź. Gdy sędzia uzna dokument za dotyczący twierdzenia wprost, ale nie znajdzie w nim rozstrzygnięcia, kod dociąga pozostałe fragmenty (do 12 z najwyżej 2 dokumentów) i sędzia ocenia jeszcze raz, już tylko na tych dokumentach. Jeśli druga ocena też nie rozstrzyga, zostaje pierwsza. Doczytanie startuje tylko przed upływem 16 s od początku sprawdzenia (`deepenBudgetMs`).
 
 ### Czym się różnią

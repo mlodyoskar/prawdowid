@@ -1,54 +1,53 @@
 /*
  * Prawdowid design tokens (gov.pl). Source: design system "Prawdowid Mobile", tokens.json v1.
  *
- * Every color holds both themes through light-dark(): the browser picks a side from `color-scheme`.
- * By default it follows the system; `<html data-theme="light|dark">` forces one theme.
+ * The app has a single light theme.
  * Tailwind utilities (bg-surface, text-ink, border-line…) come from the @theme block in styles.css.
  */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* Surfaces */
-  --surface: light-dark(#ffffff, #121417); /* Screen and content background */
-  --surface-alt: light-dark(#f2f2f2, #1c1f24); /* Secondary panels, the input box */
-  --surface-raised: light-dark(#ffffff, #23272d); /* Source cards over surface-alt */
+  --surface: #ffffff; /* Screen and content background */
+  --surface-alt: #f2f2f2; /* Secondary panels, the input box */
+  --surface-raised: #ffffff; /* Source cards over surface-alt */
 
   /* Lines */
-  --line: light-dark(#c4c4c4, #4a5059); /* Card and list borders (decorative) */
-  --line-strong: light-dark(#767676, #8a919c); /* Form fields and controls (≥3:1) */
-  --line-soft: light-dark(#e6e6e6, #2e333a); /* Section separators (decorative) */
+  --line: #c4c4c4; /* Card and list borders (decorative) */
+  --line-strong: #767676; /* Form fields and controls (≥3:1) */
+  --line-soft: #e6e6e6; /* Section separators (decorative) */
 
   /* Text */
-  --ink: light-dark(#1b1b1b, #f1f2f4);
-  --ink-muted: light-dark(#595959, #a9afb8); /* Dates, publisher, captions (≥4.5:1) */
+  --ink: #1b1b1b;
+  --ink-muted: #595959; /* Dates, publisher, captions (≥4.5:1) */
 
   /* Brand */
-  --primary: light-dark(#0052a5, #6fa8ff); /* Main button, links, active state */
-  --primary-hover: light-dark(#003f80, #9ac2ff);
-  --primary-strong: light-dark(#002d5c, #cfe2ff); /* Large navy areas: the result banner */
-  --primary-soft: light-dark(#e5eef7, #14294a); /* Selection, quote background */
-  --on-primary: light-dark(#ffffff, #0b1a2e); /* Text on primary / primary-strong */
+  --primary: #0052a5; /* Main button, links, active state */
+  --primary-hover: #003f80;
+  --primary-strong: #002d5c; /* Large navy areas: the result banner */
+  --primary-soft: #e5eef7; /* Selection, quote background */
+  --on-primary: #ffffff; /* Text on primary / primary-strong */
   /* ONLY the header rule. Never a verdict or an error. */
-  --accent-red: light-dark(#d4213d, #ff6b7f);
-  --focus: light-dark(#002d5c, #ffffff); /* Keyboard focus ring: 3px solid, 2px offset */
+  --accent-red: #d4213d;
+  --focus: #002d5c; /* Keyboard focus ring: 3px solid, 2px offset */
 
   /* Verdicts: always icon + word, never color alone */
-  --verdict-true: light-dark(#1e6b32, #7fd08f);
-  --verdict-true-bg: light-dark(#e6f2e9, #0f2a17);
-  --verdict-false: light-dark(#b3122e, #ff8a99);
-  --verdict-false-bg: light-dark(#fce8eb, #3a0d15);
-  --verdict-misleading: light-dark(#8a4b00, #ffc266);
-  --verdict-misleading-bg: light-dark(#fff1d6, #3a2600);
-  --verdict-insufficient: light-dark(#3f4a5a, #b8c2d0); /* Abstention: dashed border */
-  --verdict-insufficient-bg: light-dark(#eceff3, #262c35);
-  --verdict-unverifiable: light-dark(#595959, #a9afb8); /* Opinion, forecast: outline only */
+  --verdict-true: #1e6b32;
+  --verdict-true-bg: #e6f2e9;
+  --verdict-false: #b3122e;
+  --verdict-false-bg: #fce8eb;
+  --verdict-misleading: #8a4b00;
+  --verdict-misleading-bg: #fff1d6;
+  --verdict-insufficient: #3f4a5a; /* Abstention: dashed border */
+  --verdict-insufficient-bg: #eceff3;
+  --verdict-unverifiable: #595959; /* Opinion, forecast: outline only */
 
   /* System messages that are NOT verdicts (failure, limit, clarify, out of scope) */
-  --notice: light-dark(#0052a5, #6fa8ff);
-  --notice-bg: light-dark(#eef4fb, #16202e);
+  --notice: #0052a5;
+  --notice-bg: #eef4fb;
   /* Neutral warning about a source's status or archival material */
-  --caution: light-dark(#6b5300, #f2d36b);
-  --caution-bg: light-dark(#fbf6e3, #2b2610);
+  --caution: #6b5300;
+  --caution-bg: #fbf6e3;
 
   /* Messenger simulator (/whatsapp): a generic green chat look, no third-party branding */
   --chat-bar: light-dark(#1f6e43, #1d5a38); /* Conversation header; white text ≥4.5:1 */
@@ -58,14 +57,5 @@
   --chat-out: light-dark(#d9f2d3, #1f4a2c); /* Bubble from the user */
 
   /* Shadows (the pw- prefix keeps them apart from Tailwind's --shadow-* theme names) */
-  --pw-shadow-bar:
-    0 1px 0 light-dark(#e6e6e6, #2e333a), 0 2px 6px light-dark(rgb(0 0 0 / 0.06), transparent);
-}
-
-:root[data-theme='light'] {
-  color-scheme: light;
-}
-
-:root[data-theme='dark'] {
-  color-scheme: dark;
+  --pw-shadow-bar: 0 1px 0 #e6e6e6, 0 2px 6px rgb(0 0 0 / 0.06);
 }

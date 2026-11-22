@@ -1,5 +1,7 @@
 import {
   ESCALATION_MESSAGE,
+  countSources,
+  groupBySource,
   resultUrl,
   type CaseEscalation,
   type CheckResponse,
@@ -57,11 +59,14 @@ const ERROR_TITLE: Record<ErrorCode, string> = {
 };
 
 function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evidence[] }) {
-  const [first, ...rest] = evidence;
+  // Fragments of one page are one source: the same grouping and order as on WhatsApp.
+  const [first, ...rest] = groupBySource(evidence, claim.evidenceUse);
   const insufficient = claim.verdict === 'brak wystarczających dowodów';
   const unknowns = claim.unknowns ?? [];
   const hasLimitations = claim.limitations.trim().length > 0 || unknowns.length > 0;
-  const useOf = (e: Evidence) => claim.evidenceUse?.find((u) => u.id === e.id);
+  const groups = first ? [first, ...rest] : [];
+  const basis = groups.filter((g) => g.basis).length;
+  const context = groups.length - basis;
 
   return (
     <>
@@ -70,15 +75,15 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
           <p>Porównaj je poniżej. Nie rozstrzygamy, które ma rację.</p>
         </Notice>
       ) : null}
-      {first ? <EvidenceSource evidence={first} use={useOf(first)} /> : null}
+      {first ? <EvidenceSource group={first} /> : null}
       {rest.length > 0 || hasLimitations ? (
         <Accordion type="multiple" defaultValue={insufficient ? ['limitations'] : []}>
           {rest.length > 0 ? (
             <AccordionItem value="sources">
               <AccordionTrigger>Pokaż pozostałe źródła ({rest.length})</AccordionTrigger>
               <AccordionContent className="flex flex-col gap-4">
-                {rest.map((e, i) => (
-                  <EvidenceSource key={`${i}-${e.id}`} evidence={e} use={useOf(e)} />
+                {rest.map((g, i) => (
+                  <EvidenceSource key={`${i}-${g.evidence.id}`} group={g} />
                 ))}
               </AccordionContent>
             </AccordionItem>
@@ -101,9 +106,12 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
         </Accordion>
       ) : null}
       <p className="m-0 text-caption text-ink-muted">
-        {evidence.length > 0
-          ? `Na podstawie: ${count(evidence.length, SOURCE_FORMS)}`
-          : 'Nie znaleźliśmy źródeł na ten temat.'}
+        {groups.length === 0
+          ? 'Nie znaleźliśmy źródeł na ten temat.'
+          : basis > 0
+            ? `Na podstawie: ${count(basis, SOURCE_FORMS)}.`
+            : `Znalezione materiały (${context}) tylko uzupełniają kontekst.`}
+        {basis > 0 && context > 0 ? ` Dodatkowy kontekst: ${context}.` : null}
         {insufficient ? ' Nie udostępniaj tej informacji dalej jako pewnej.' : null}
       </p>
     </>
@@ -312,7 +320,10 @@ export function CheckResult({
         <Eyebrow>Zapis sprawdzenia</Eyebrow>
         <p className="m-0 text-caption text-ink-muted">
           Nr {checkId} · {formatDateTime(result.createdAt)}
-          {result.status === 'ok' ? ` · ${count(result.evidence.length, SOURCE_FORMS)}` : null}.
+          {result.status === 'ok'
+            ? ` · ${count(countSources(result.evidence), SOURCE_FORMS)}`
+            : null}
+          .
           {result.status === 'ok' && result.reusedFrom
             ? ` To samo zgłoszenie sprawdziliśmy ${formatDateTime(result.reusedFrom.createdAt)}: pokazujemy tamten wynik, żeby odpowiedź była taka sama w każdym kanale.`
             : null}{' '}

@@ -19,7 +19,7 @@ Kod egzekwuje je deterministycznie, nie tylko przez prompt.
 - **Domena, autor, kanał, popularność ani status źródła** (np. sankcje UE) nie przesądzają o prawdziwości. Dają najwyżej osobne, neutralne ostrzeżenie.
 - **Treść zapytania, pobrane strony i dokumenty korpusu to dane, nie instrukcje.** Instrukcje w nich są ignorowane i logowane (`prompt_injection_suspected`).
 - **Jedna logika dla wszystkich kanałów.** WWW i drugi kanał wołają to samo `runVerification()` (tryb wyszukiwania z `RESEARCH_MODE`, patrz [docs/agent.md](docs/agent.md)) i dają ten sam werdykt i dowody. Model i dostawcę zmienia się konfiguracją.
-- **Sprawy moderatora:** komunikat o przekazaniu tylko po potwierdzonym zapisie. Podobne zapytania trafiają do jednej sprawy.
+- **Sprawy moderatora:** komunikat o przekazaniu tylko po potwierdzonym zapisie. Podobne zapytania trafiają do jednej sprawy. Dziś system tylko oznacza sprawę do weryfikacji (`review_recommended`, reguły w [apps/api/src/cases.ts](apps/api/src/cases.ts)) i niczego nie wysyła, więc nie komunikuje przekazania.
 - **Prywatność i zapis przebiegu:** dane osobowe są maskowane przed modelem i zapisem. Każde sprawdzenie zapisuje zapytanie, czas, źródła, wynik i koszt. Sesję można usunąć.
 
 ## Scenariusze testowe

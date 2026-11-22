@@ -1,4 +1,11 @@
-import type { CheckResponse, ClaimResult, ErrorCode, Evidence } from '@prawdowid/contracts';
+import {
+  ESCALATION_MESSAGE,
+  type CaseEscalation,
+  type CheckResponse,
+  type ClaimResult,
+  type ErrorCode,
+  type Evidence,
+} from '@prawdowid/contracts';
 import { Check, Copy, RotateCcw } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
@@ -27,6 +34,7 @@ type OkResult = Extract<CheckResponse, { status: 'ok' }>;
 type CheckResultProps = {
   checkId: string;
   result: CheckResponse;
+  escalation?: CaseEscalation | undefined;
   onNewCheck: () => void;
   onRetry?: () => void;
   onEdit: () => void;
@@ -100,7 +108,7 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
   );
 }
 
-function OkView({ result }: { result: OkResult }) {
+function OkView({ result, escalation }: { result: OkResult; escalation?: CaseEscalation }) {
   const byId = new Map(result.evidence.map((e) => [e.id, e]));
   const n = result.claims.length;
 
@@ -109,6 +117,12 @@ function OkView({ result }: { result: OkResult }) {
       <SummaryBanner eyebrow="Wynik sprawdzenia" title={summaryTitle(n)}>
         <p>{result.summary}</p>
       </SummaryBanner>
+
+      {escalation ? (
+        <Notice title="Do sprawdzenia przez moderatora">
+          <p>{ESCALATION_MESSAGE[escalation.reason]}</p>
+        </Notice>
+      ) : null}
 
       {result.warnings.length > 0 ? (
         <Notice variant="caution" title="Zwróć uwagę">
@@ -166,6 +180,7 @@ function OkView({ result }: { result: OkResult }) {
 export function CheckResult({
   checkId,
   result,
+  escalation,
   onNewCheck,
   onRetry,
   onEdit,
@@ -191,7 +206,7 @@ export function CheckResult({
   let body: ReactNode;
   switch (result.status) {
     case 'ok':
-      body = <OkView result={result} />;
+      body = <OkView result={result} {...(escalation ? { escalation } : {})} />;
       break;
     case 'needs_clarification':
       body = (

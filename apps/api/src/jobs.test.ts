@@ -320,3 +320,20 @@ test('ponowne użycie: kopia przejmuje sygnały injection i rodzaje ukrytych dan
   assert.deepEqual(copy?.injectionSignals, [{ source: 'user', pattern: 'ignore_instructions' }]);
   assert.deepEqual(copy?.piiMasked, ['EMAIL']);
 });
+
+test('delete woła onDelete (sprzątanie spraw moderatora w każdym kanale)', () => {
+  const store = new SqliteJobStore(':memory:');
+  const deleted: string[] = [];
+  const runner = new JobRunner({
+    store,
+    run: async (_input, { checkId }) => okResult(checkId),
+    concurrency: 1,
+    maxQueued: 10,
+    timeoutMs: 5000,
+    onDelete: (id) => deleted.push(id),
+  });
+  const job = runner.enqueue({ text: 'a' });
+  assert.ok(job);
+  runner.delete(job.checkId);
+  assert.deepEqual(deleted, [job.checkId]);
+});

@@ -76,6 +76,12 @@ const Env = z.object({
    * najpóźniej z retencją (CHECKS_RETENTION_HOURS) albo po usunięciu sesji.
    */
   CHECK_REUSE_HOURS: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(24)),
+  /**
+   * Sprawy moderatora (cases.ts): tyle zgłoszeń bez dowodów w oknie CASE_WINDOW_HOURS oznacza
+   * sprawę do weryfikacji. Okno powinno mieścić się w CHECKS_RETENTION_HOURS.
+   */
+  CASE_REPEAT_THRESHOLD: int(3),
+  CASE_WINDOW_HOURS: int(24),
   /** Limit nowych sprawdzeń na klienta (IP) na minutę. */
   RATE_LIMIT_PER_MINUTE: int(10),
   /** Limit odpytań o wynik na klienta na minutę (polling co ~1 s mieści się z zapasem). */

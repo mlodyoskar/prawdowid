@@ -223,3 +223,11 @@ export function checkIdFromLocation(pathname: string, search: string): string | 
   }
   return new URLSearchParams(search).get('check');
 }
+
+export {
+  countSources,
+  groupBySource,
+  sourceQuotes,
+  type SourceFragment,
+  type SourceGroup,
+} from './sources.ts';

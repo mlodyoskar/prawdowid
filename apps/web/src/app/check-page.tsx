@@ -10,7 +10,6 @@ import {
   Field,
   ICON_STROKE,
   Notice,
-  Steps,
   Textarea,
 } from '@/ui';
 
@@ -22,11 +21,15 @@ import { readCheckParam, useCheck, type CheckState } from './use-check.ts';
 const SOURCES_LINE =
   'komunikaty rządu i ministerstw (gov.pl) · MSZ Odyseusz · RCB · Regionalny System Ostrzegania · CERT Polska · Policja';
 
+/** Read out by screen readers when the stage changes; the button shows only the time. */
 const STEPS = [
   'Wysyłamy wiadomość',
   'Czekamy na swoją kolej',
   'Szukamy w źródłach urzędowych i serwisach fact-checkingowych',
 ] as const;
+
+/** A check usually ends within this; past it the button says it takes longer than usual. */
+const USUAL_SECONDS = 30;
 
 function currentStep(state: CheckState): number {
   if (state.phase === 'waiting') return state.jobState === 'queued' ? 1 : 2;
@@ -55,7 +58,24 @@ export function CheckPage() {
     if (focusTick > 0) textareaRef.current?.focus();
   }, [focusTick]);
 
-  const announcement = busy ? `${STEPS[currentStep(state)]}…` : confirmation;
+  // Seconds since the check started: shown on the button so a long wait never looks frozen.
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!busy) return undefined;
+    const started = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => {
+      clearInterval(timer);
+      setElapsed(0);
+    };
+  }, [busy]);
+  const slow = elapsed > USUAL_SECONDS;
+
+  const announcement = busy
+    ? slow
+      ? 'To trwa dłużej niż zwykle. Wciąż szukamy.'
+      : `${STEPS[currentStep(state)]}…`
+    : confirmation;
 
   // A shared link (/w/<id>) opens that check's result.
   useEffect(() => {
@@ -105,6 +125,7 @@ export function CheckPage() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     const parsed = CheckRequest.safeParse({
       text: text.trim() || undefined,
       image: image?.input,
@@ -186,98 +207,110 @@ export function CheckPage() {
             />
           </Field>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {image ? (
-              <div className="flex min-w-0 items-center gap-3">
-                <img
-                  src={image.previewUrl}
-                  alt=""
-                  className="size-16 shrink-0 rounded-sm border border-line object-cover"
-                />
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate font-semibold">{image.name}</span>
-                  <span className="text-caption text-ink-muted">Dołączone zdjęcie</span>
+          {busy && !image ? null : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {image ? (
+                <div className="flex min-w-0 items-center gap-3">
+                  <img
+                    src={image.previewUrl}
+                    alt=""
+                    className="size-16 shrink-0 rounded-sm border border-line object-cover"
+                  />
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-semibold">{image.name}</span>
+                    <span className="text-caption text-ink-muted">Dołączone zdjęcie</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="text"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => setImage(null)}
+                  >
+                    <X strokeWidth={ICON_STROKE} aria-hidden="true" />
+                    Usuń zdjęcie
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="text"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => setImage(null)}
-                >
-                  <X strokeWidth={ICON_STROKE} aria-hidden="true" />
-                  Usuń zdjęcie
+              ) : (
+                <div className="flex flex-col items-start gap-2">
+                  <Button
+                    type="button"
+                    variant="tool"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    <ImagePlus strokeWidth={ICON_STROKE} aria-hidden="true" />
+                    Dodaj zdjęcie lub zrzut ekranu
+                  </Button>
+                  <span className="text-caption text-ink-muted">
+                    Gazeta, plakat, ekran telefonu. Odczytamy tekst za Ciebie.
+                  </span>
+                </div>
+              )}
+              <span className="text-caption text-ink-muted" aria-live="off">
+                {text.length} / {MAX_TEXT_LENGTH} znaków
+              </span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept={IMAGE_ACCEPT}
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void attach(file);
+                }}
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {/* While checking, the button itself is the progress: it stays where the user tapped. */}
+            <Button
+              type="submit"
+              aria-disabled={busy || undefined}
+              className={
+                busy
+                  ? 'w-full cursor-wait sm:w-auto sm:self-start'
+                  : 'w-full sm:w-auto sm:self-start'
+              }
+            >
+              {busy ? (
+                <>
+                  <LoaderCircle
+                    strokeWidth={ICON_STROKE}
+                    className="motion-safe:animate-spin"
+                    aria-hidden="true"
+                  />
+                  {slow ? 'Jeszcze chwilę…' : 'Sprawdzamy…'}
+                  <span className="normal-case tabular-nums">{elapsed} s</span>
+                </>
+              ) : (
+                'Sprawdź'
+              )}
+            </Button>
+            {busy ? (
+              <div className="flex flex-wrap items-center justify-between gap-x-4 text-caption text-ink-muted">
+                <span>
+                  {slow ? 'Trwa dłużej niż zwykle, wciąż szukamy.' : 'Zwykle do 30 sekund.'}
+                </span>
+                <Button variant="text" size="sm" className="px-0" onClick={cancelCheck}>
+                  Anuluj
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col items-start gap-2">
-                <Button
-                  type="button"
-                  variant="tool"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => fileRef.current?.click()}
-                >
-                  <ImagePlus strokeWidth={ICON_STROKE} aria-hidden="true" />
-                  Dodaj zdjęcie lub zrzut ekranu
-                </Button>
-                <span className="text-caption text-ink-muted">
-                  Gazeta, plakat, ekran telefonu. Odczytamy tekst za Ciebie.
-                </span>
-              </div>
+              <p className="m-0 text-caption text-ink-muted">
+                Bezpłatnie i bez logowania. Dane osobowe usuwamy z wiadomości przed sprawdzeniem.{' '}
+                <a className="pw-link" href="#jak-dzialamy">
+                  Jak to działa
+                </a>
+              </p>
             )}
-            <span className="text-caption text-ink-muted" aria-live="off">
-              {text.length} / {MAX_TEXT_LENGTH} znaków
-            </span>
-            <input
-              ref={fileRef}
-              type="file"
-              accept={IMAGE_ACCEPT}
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden="true"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (file) void attach(file);
-              }}
-            />
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <Button type="submit" disabled={busy} className="w-full sm:w-auto sm:self-start">
-              {busy ? (
-                <LoaderCircle
-                  strokeWidth={ICON_STROKE}
-                  className="motion-safe:animate-spin"
-                  aria-hidden="true"
-                />
-              ) : null}
-              {busy ? 'Sprawdzamy…' : 'Sprawdź'}
-            </Button>
-            <p className="m-0 text-caption text-ink-muted">
-              Bezpłatnie i bez logowania. Dane osobowe usuwamy z wiadomości przed sprawdzeniem.{' '}
-              <a className="pw-link" href="#jak-dzialamy">
-                Jak to działa
-              </a>
-            </p>
           </div>
         </form>
-
-        {busy ? (
-          <section
-            aria-labelledby="progress-title"
-            className="flex flex-col gap-4 border-t border-line-soft pt-8"
-          >
-            <h2 id="progress-title" className="m-0 text-title-2">
-              Sprawdzamy – to potrwa do 30 sekund
-            </h2>
-            <Steps label="Postęp sprawdzania" steps={STEPS} current={currentStep(state)} />
-            <Button variant="text" className="self-start" onClick={cancelCheck}>
-              Anuluj sprawdzanie
-            </Button>
-          </section>
-        ) : null}
 
         {settled ? (
           <section

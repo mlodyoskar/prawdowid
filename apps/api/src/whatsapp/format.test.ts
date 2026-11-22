@@ -194,3 +194,35 @@ test('sprawa oznaczona do weryfikacji: ten sam komunikat co w WWW, bez „przeka
     assert.ok(text.trimEnd().endsWith(resultUrl(ORIGIN, 'abc')), 'link na końcu');
   }
 });
+
+test('fragmenty tej samej strony to jedno źródło, bez cytatu równego tytułowi', () => {
+  const page = 'https://www.gov.pl/web/gis/kubek';
+  const text = formatReply(
+    ok({
+      claims: [
+        claim({
+          verdict: 'potwierdzone',
+          evidenceIds: ['e1', 'e2', 'e3'],
+          unknowns: ['Skala wycofania.', 'Wyniki badań.'],
+          evidenceUse: [
+            { id: 'e1', stance: 'supports', quote: 'Komunikat MON' },
+            { id: 'e2', stance: 'supports', quote: 'stwierdzono migrację formaldehydu' },
+            { id: 'e3', stance: 'context', quote: 'inny komunikat' },
+          ],
+        }),
+      ],
+      evidence: [
+        evidence({ id: 'e1', url: page }),
+        evidence({ id: 'e2', url: page }),
+        evidence({ id: 'e3', url: 'https://www.gov.pl/web/gis/inny', title: 'Inny' }),
+      ],
+    }),
+    ORIGIN,
+  );
+  assert.equal(text.split('Źródło: Komunikat MON').length - 1, 1, 'strona raz');
+  assert.equal(text.split(page).length - 1, 1, 'link raz');
+  assert.ok(text.includes('„stwierdzono migrację formaldehydu”'));
+  assert.ok(!text.includes('„Komunikat MON”'), 'cytat = tytuł pominięty');
+  assert.ok(text.includes('Pozostałe źródła (1) w pełnym wyniku.'));
+  assert.ok(text.includes('Nie ustaliliśmy: Skala wycofania; Wyniki badań'), 'bez „.;”');
+});

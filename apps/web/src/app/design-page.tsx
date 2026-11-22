@@ -1,4 +1,4 @@
-import type { Evidence } from '@prawdowid/contracts';
+import { groupBySource, type Evidence, type SourceGroup } from '@prawdowid/contracts';
 import { ArrowRight } from 'lucide-react';
 import { type ReactNode } from 'react';
 
@@ -25,6 +25,8 @@ import {
 } from '@/ui';
 
 import { EvidenceSource } from './evidence-source.tsx';
+
+const single = (e: Evidence): SourceGroup => groupBySource([e])[0]!;
 import { SiteFooter } from './site-footer.tsx';
 
 const COLOR_GROUPS: { title: string; tokens: string[] }[] = [
@@ -305,7 +307,7 @@ export function DesignPage() {
         >
           <div className="grid gap-4 md:grid-cols-2">
             {SAMPLE_EVIDENCE.map((e) => (
-              <EvidenceSource key={e.id} evidence={e} />
+              <EvidenceSource key={e.id} group={single(e)} />
             ))}
           </div>
         </Section>
@@ -353,12 +355,12 @@ export function DesignPage() {
               confidence="wysoka"
               reasons={['2 niezależne źródła pierwotne (MSZ, NATO)', 'oba z ostatnich 7 dni']}
             >
-              <EvidenceSource evidence={OFFICIAL} />
+              <EvidenceSource group={single(OFFICIAL)} />
               <Accordion type="multiple">
                 <AccordionItem value="more">
                   <AccordionTrigger>Pokaż pozostałe źródła (1)</AccordionTrigger>
                   <AccordionContent>
-                    <EvidenceSource evidence={FACTCHECK} />
+                    <EvidenceSource group={single(FACTCHECK)} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

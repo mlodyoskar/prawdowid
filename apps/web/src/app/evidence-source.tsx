@@ -1,7 +1,14 @@
-import type { Evidence, EvidenceUse, SourceType, Stance } from '@prawdowid/contracts';
+import {
+  sourceQuotes,
+  type Evidence,
+  type SourceGroup,
+  type SourceType,
+  type Stance,
+} from '@prawdowid/contracts';
+import { useState } from 'react';
 
-import { formatDate, hostname, isWebUrl } from '@/lib/format.ts';
-import { FactcheckSourceIcon, OfficialSourceIcon, SourceCard } from '@/ui';
+import { count, formatDate, hostname, isWebUrl } from '@/lib/format.ts';
+import { Button, FactcheckSourceIcon, OfficialSourceIcon, SourceCard } from '@/ui';
 
 const SOURCE_TYPE_LABEL: Record<SourceType, string> = {
   primary: 'Źródło pierwotne',
@@ -14,6 +21,11 @@ const STANCE_LABEL: Record<Stance, string> = {
   context: 'Uzupełnia kontekst',
 };
 
+const FRAGMENT_FORMS = ['fragment', 'fragmenty', 'fragmentów'] as const;
+
+/** Quotes shown before "Pokaż jeszcze…". */
+const VISIBLE_QUOTES = 2;
+
 /** Search engines mark hits with «»; they are not part of the source text. */
 const stripMarkers = (text: string) => text.replace(/[«»]/g, '');
 
@@ -23,11 +35,19 @@ function typeLabel(e: Evidence): string {
 }
 
 /**
- * Maps an `Evidence` record from the API onto the design system's SourceCard.
- * `use` comes from plan mode: the source's role for this claim and the quote the code verified.
+ * One publication behind a claim, as a SourceCard. Fragments of the same page (the search
+ * returns them separately) become quotes in one card instead of repeated cards.
  */
-export function EvidenceSource({ evidence: e, use }: { evidence: Evidence; use?: EvidenceUse }) {
-  const quote = use?.quote || stripMarkers(e.excerpt);
+export function EvidenceSource({ group }: { group: SourceGroup }) {
+  const [expanded, setExpanded] = useState(false);
+  const e = group.evidence;
+  const quotes = sourceQuotes(group, (f) => stripMarkers(f.evidence.excerpt));
+  const visible = expanded ? quotes : quotes.slice(0, VISIBLE_QUOTES);
+  const hidden = quotes.length - visible.length;
+  // One label for the card, unless fragments of this page play different roles.
+  const mixed = group.stances.length > 1;
+  const rating = group.fragments.find((f) => f.evidence.rating)?.evidence.rating;
+
   const web = isWebUrl(e.url);
   const published = formatDate(e.publishedAt);
   const fetched = formatDate(e.fetchedAt);
@@ -40,6 +60,10 @@ export function EvidenceSource({ evidence: e, use }: { evidence: Evidence; use?:
     .filter(Boolean)
     .join(' · ');
 
+  const stance = !mixed && group.stances[0] ? STANCE_LABEL[group.stances[0]] : null;
+  const fragments =
+    quotes.length > 1 ? count(quotes.length, FRAGMENT_FORMS) + ' z tej strony' : null;
+
   return (
     <SourceCard
       typeLabel={typeLabel(e)}
@@ -47,16 +71,38 @@ export function EvidenceSource({ evidence: e, use }: { evidence: Evidence; use?:
       title={e.title}
       href={web ? e.url : undefined}
       meta={meta}
-      quote={quote ? `„${quote}”` : undefined}
+      quote={
+        visible.length > 0 ? (
+          <span className="flex flex-col gap-3">
+            {visible.map((q, i) => (
+              <span key={`${i}-${q.fragment.evidence.id}`} className="flex flex-col gap-1">
+                <span>„{q.text}”</span>
+                {mixed && q.fragment.use ? (
+                  <span className="text-label font-bold">
+                    {STANCE_LABEL[q.fragment.use.stance]}
+                  </span>
+                ) : null}
+              </span>
+            ))}
+          </span>
+        ) : undefined
+      }
       footer={
-        e.rating || use ? (
-          <span className="flex flex-col gap-1 text-label">
-            {e.rating ? (
+        rating || stance || fragments || hidden > 0 ? (
+          <span className="flex flex-col items-start gap-1 text-label">
+            {rating ? (
               <span>
-                Ocena fact-checkera: <span className="font-bold">{e.rating}</span>
+                Ocena fact-checkera: <span className="font-bold">{rating}</span>
               </span>
             ) : null}
-            {use ? <span className="font-bold">{STANCE_LABEL[use.stance]}</span> : null}
+            {stance || fragments ? (
+              <span className="font-bold">{[stance, fragments].filter(Boolean).join(' · ')}</span>
+            ) : null}
+            {hidden > 0 ? (
+              <Button variant="text" size="sm" className="px-0" onClick={() => setExpanded(true)}>
+                Pokaż jeszcze {count(hidden, FRAGMENT_FORMS)}
+              </Button>
+            ) : null}
           </span>
         ) : undefined
       }

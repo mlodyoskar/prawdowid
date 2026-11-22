@@ -3,13 +3,14 @@ import { test } from 'node:test';
 
 import {
   ESCALATION_MESSAGE,
+  resultUrl,
   type CheckResponse,
   type ClaimResult,
   type ErrorCode,
   type Evidence,
 } from '@prawdowid/contracts';
 
-import { formatReply, resultUrl } from './format.ts';
+import { formatReply } from './format.ts';
 import { WHATSAPP_TEXT_LIMIT } from './graph.ts';
 
 const ORIGIN = 'https://prawdowid.example';
@@ -55,7 +56,7 @@ test('zaczyna się od werdyktu, ma cytat, źródło i kończy linkiem do pełneg
   assert.ok(text.includes('„MON nie planuje przywrócenia poboru.”'));
   assert.ok(text.includes('Komunikat MON (MON, 01.11.2026)'));
   assert.ok(text.includes('https://www.gov.pl/web/obrona-narodowa/x'));
-  assert.ok(text.endsWith(`${ORIGIN}/?check=abc`));
+  assert.ok(text.endsWith(`${ORIGIN}/w/abc`));
 });
 
 test('statusy techniczne: „To nie jest werdykt” i żadnej etykiety werdyktu', () => {
@@ -132,7 +133,7 @@ test('długi wynik mieści się w limicie WhatsApp i nadal kończy się linkiem'
     ORIGIN,
   );
   assert.ok(text.length <= WHATSAPP_TEXT_LIMIT, String(text.length));
-  assert.ok(text.endsWith(`${ORIGIN}/?check=abc`));
+  assert.ok(text.endsWith(`${ORIGIN}/w/abc`));
 });
 
 test('pokazuje każdą publikację-podstawę werdyktu jak WWW, kontekst zostawia w pełnym wyniku', () => {

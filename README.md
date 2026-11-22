@@ -96,7 +96,7 @@ Korpus to plik SQLite (`data/corpus.db`) budowany od zera ze snapshotu [data/cor
 
 ### Frontend
 
-Jedna strona w stylu gov.pl: formularz (tekst, link albo zdjęcie), postęp i wynik pod formularzem, bez przechodzenia między widokami. Strona wysyła `POST /api/checks` i odpytuje `GET /api/checks/:checkId`; id sprawdzenia trafia do adresu (`?check=…`), więc wynik można odświeżyć i udostępnić. Adres API ustawia `VITE_API_URL` w głównym `.env` (domyślnie `http://localhost:3000`).
+Jedna strona w stylu gov.pl: formularz (tekst, link albo zdjęcie), postęp i wynik pod formularzem, bez przechodzenia między widokami. Strona wysyła `POST /api/checks` i odpytuje `GET /api/checks/:checkId`; krótki losowy id sprawdzenia trafia do adresu (`/w/<id>`), więc wynik można odświeżyć i udostępnić. Adres API ustawia `VITE_API_URL` w głównym `.env` (domyślnie `http://localhost:3000`).
 
 Eksport danych (tylko WWW, kanał WhatsApp go nie ma): pod wynikiem `ok` są przyciski pobierania. Plik powstaje w przeglądarce z pokazanego wyniku ([apps/web/src/lib/export.ts](apps/web/src/lib/export.ts)), bez dodatkowego endpointu w API.
 
@@ -114,7 +114,7 @@ Zasady z makiet: werdykt zawsze ma ikonę i słowo; komunikat systemowy (awaria,
 
 ### Kanał WhatsApp
 
-Drugi kanał działa przez oficjalne WhatsApp Cloud API od Meta. Kod jest w [apps/api/src/whatsapp](apps/api/src/whatsapp) i jest tylko adapterem: wiadomość trafia do tej samej kolejki co zgłoszenie z WWW (`JobRunner` → `runVerification()`). To samo zgłoszenie z obu kanałów dostaje jeden wynik (patrz [Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)), więc werdykt i dowody są te same. Odpowiedź zaczyna się od werdyktu, podaje z cytatem każdą publikację, na której opiera się werdykt (te same co WWW, kontekst zostaje w pełnym wyniku), i kończy linkiem `WEB_ORIGIN/?check=<id>`, który otwiera ten sam zapisany wynik na stronie.
+Drugi kanał działa przez oficjalne WhatsApp Cloud API od Meta. Kod jest w [apps/api/src/whatsapp](apps/api/src/whatsapp) i jest tylko adapterem: wiadomość trafia do tej samej kolejki co zgłoszenie z WWW (`JobRunner` → `runVerification()`). To samo zgłoszenie z obu kanałów dostaje jeden wynik (patrz [Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)), więc werdykt i dowody są te same. Odpowiedź zaczyna się od werdyktu, podaje z cytatem każdą publikację, na której opiera się werdykt (te same co WWW, kontekst zostaje w pełnym wyniku), i kończy linkiem `WEB_ORIGIN/w/<id>`, który otwiera ten sam zapisany wynik na stronie.
 
 - Obsługiwane: tekst, link, zdjęcie (z podpisem lub bez). `POMOC` pokazuje instrukcję, `USUŃ` kasuje sprawdzenia wysłane z tego numeru.
 - Zamiast wiadomości „Sprawdzam…” kanał oznacza zgłoszenie jako przeczytane i pokazuje „pisze…” (ponawiane co 20 s, bo Meta gasi wskaźnik po 25 s). To nie jest wiadomość, więc nie zużywa puli 1000 darmowych wiadomości serwisowych miesięcznie; na jedno sprawdzenie przypada jedna wiadomość, czyli odpowiedź.

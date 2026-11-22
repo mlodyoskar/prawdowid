@@ -750,3 +750,36 @@ for (const lateHit of [false, true]) {
     assert.ok(!prompt.includes('drugie dokument 4'));
   });
 }
+
+test('katalog incydentów dostaje tylko wydzielone twierdzenie, a werdykt jest ten sam co bez katalogu', async () => {
+  const text = 'Kolega z pracy (tel. 601 234 567) mówi: czy od grudnia wraca pobór?';
+  const run = async (withCatalog: boolean) => {
+    const queries: string[] = [];
+    const { model } = stagedModel({ extract: extraction([{}]), judge: refutes() });
+    const { deps: d } = deps(model);
+    const result = await runVerification(
+      { text },
+      {
+        ...d,
+        ...(withCatalog
+          ? {
+              incidents: async ({ query }: { query: string }) => {
+                queries.push(query);
+                return { ok: true as const, items: [] };
+              },
+            }
+          : {}),
+      },
+      { checkId: 'x', mode: 'plan' },
+    );
+    return { result, queries };
+  };
+  const plain = await run(false);
+  const withCatalog = await run(true);
+  assert.deepEqual(withCatalog.queries, ['Od grudnia wraca obowiązkowy pobór do wojska.']);
+  assert.ok(plain.result.response.status === 'ok' && withCatalog.result.response.status === 'ok');
+  if (plain.result.response.status !== 'ok' || withCatalog.result.response.status !== 'ok') return;
+  assert.deepEqual(withCatalog.result.response.claims, plain.result.response.claims);
+  assert.deepEqual(withCatalog.result.response.evidence, plain.result.response.evidence);
+  assert.deepEqual(withCatalog.result.response.incidentCatalog, { status: 'checked' });
+});

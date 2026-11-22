@@ -130,6 +130,34 @@ export const ErrorCode = z.enum([
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
+/**
+ * Twierdzenie przypomina znany przekaz dezinformacyjny z bazy EUvsDisinfo. To KONTEKST, nie dowód:
+ * nie wchodzi do `evidence`, nie zmienia werdyktu ani siły podstawy (docs/research/euvsdisinfo.md).
+ */
+export const IncidentMatch = z.object({
+  /** Indeks twierdzenia w `claims`. */
+  claimIndex: z.number().int().nonnegative(),
+  title: z.string(),
+  /** Strona przypadku w euvsdisinfo.eu. */
+  url: z.string(),
+  publisher: z.string(),
+  /** Streszczenie przekazu (tak jak opisała go baza; to treść dezinformacji, nie fakt). */
+  summary: z.string(),
+  /** Dosłowny fragment streszczenia, na którym oparto dopasowanie; obecność sprawdził kod. */
+  quote: z.string(),
+});
+export type IncidentMatch = z.infer<typeof IncidentMatch>;
+
+export const INCIDENT_PUBLISHER = 'EUvsDisinfo (East StratCom Task Force ESDZ)';
+
+export const IncidentCatalogState = z.object({
+  /** `checked`: przejrzany; `unavailable`: awaria bazy lub modelu; `skipped`: brak czasu. */
+  status: z.enum(['checked', 'unavailable', 'skipped']),
+  /** Powód dla stanu innego niż `checked`, po polsku. */
+  message: z.string().optional(),
+});
+export type IncidentCatalogState = z.infer<typeof IncidentCatalogState>;
+
 const ResponseMeta = z.object({
   checkId: z.string(),
   createdAt: z.string(),
@@ -148,6 +176,13 @@ export const CheckResponse = z.discriminatedUnion('status', [
     /** Źródła, w których faktycznie szukano. */
     searched: z.array(z.string()).optional(),
     mode: ResearchMode.optional(),
+    /** Podobne znane przekazy dezinformacyjne: kontekst obok werdyktu, nigdy jego podstawa. */
+    incidents: z.array(IncidentMatch).optional(),
+    /**
+     * Czy katalog znanych incydentów udało się przejrzeć. Osobno od `warnings` i `searched`:
+     * katalog to kontekst, a nie źródło dowodów, a jego awaria nie dotyczy oceny.
+     */
+    incidentCatalog: IncidentCatalogState.optional(),
     /**
      * To samo zgłoszenie sprawdzono już wcześniej: wynik jest kopią tamtego sprawdzenia
      * (ten sam werdykt i te same dowody we wszystkich kanałach). `createdAt` to czas tamtego sprawdzenia.

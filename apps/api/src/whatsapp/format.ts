@@ -101,13 +101,18 @@ function claimBlock(
   const evidence = claim.evidenceIds.flatMap((id) => byId.get(id) ?? []);
   // Te same publikacje i ta sama kolejność co w WWW: fragmenty jednej strony to jedno źródło.
   // Materiały kontekstowe i inne materiały na ten temat zostają w pełnym wyniku. Materiał
-  // kontekstowy nie udaje źródła rozstrzygnięcia: bez podstawy mówimy wprost, że nic tego nie rozstrzyga.
+  // kontekstowy nie udaje źródła rozstrzygnięcia: bez podstawy mówimy wprost, że nic tego
+  // nie rozstrzyga.
   const groups = groupBySource(evidence, claim.evidenceUse);
   const shown = groups.filter((g) => g.basis).slice(0, MAX_SOURCES_PER_CLAIM);
   for (const g of shown) lines.push('', evidenceBlock(g));
   const rest = groups.length - shown.length + (claim.relatedIds?.length ?? 0);
   if (shown.length === 0 && claim.verdict !== 'nie podlega weryfikacji') {
-    lines.push('Żadne ze znalezionych źródeł tego nie rozstrzyga.');
+    lines.push(
+      rest > 0
+        ? 'Żadne ze znalezionych źródeł tego nie rozstrzyga.'
+        : 'Nie znaleźliśmy źródeł na ten temat.',
+    );
   }
   if (rest > 0) lines.push(`Pozostałe materiały (${rest}) w pełnym wyniku.`);
   if (claim.verdict === 'brak wystarczających dowodów') {
@@ -154,6 +159,16 @@ export function formatReply(
         response.unchecked.map((u) => `„${u.claim}”`).join(', '),
         400,
       )}`,
+    );
+  }
+  if (response.incidents && response.incidents.length > 0) {
+    // Kontekst, nie dowód: osobno od werdyktu i źródeł, z zastrzeżeniem, że nie zmienia oceny.
+    const shown = response.incidents.slice(0, 2);
+    tail.push(
+      [
+        'Kontekst (nie wpływa na ocenę): podobne twierdzenie opisuje katalog EUvsDisinfo. To nie dowód w tej sprawie.',
+        ...shown.map((m) => `• ${truncate(m.title, 160)}\n${m.url}`),
+      ].join('\n'),
     );
   }
   if (escalation) tail.push(ESCALATION_MESSAGE[escalation.reason]);

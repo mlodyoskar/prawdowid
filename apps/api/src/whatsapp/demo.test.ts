@@ -195,7 +195,7 @@ test('symulator i webhook Meta: to samo zgłoszenie i ten sam wynik → identycz
   assert.equal(after.messages.length, 1);
   assert.equal(after.messages[0]!.text, ctx.sent[0]!.body);
   assert.ok(after.messages[0]!.text.startsWith('❌ FAŁSZYWE'));
-  assert.ok(after.messages[0]!.text.endsWith(resultUrl('https://prawdowid.example', 'c1')));
+  assert.ok(after.messages[0]!.text.endsWith('https://prawdowid.example/w/c1'));
 });
 
 test('polecenia POMOC i USUŃ działają jak w WhatsApp', async () => {

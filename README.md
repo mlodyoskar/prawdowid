@@ -140,6 +140,10 @@ Korpus to plik SQLite (`data/corpus.db`) budowany od zera ze snapshotu [data/cor
 - Wersja korpusu (`wersja_korpusu` ze snapshotu) jest widoczna w `GET /health` i zapisywana przy każdym sprawdzeniu, więc wyniki testów da się przypisać do konkretnego korpusu.
 - Nowy snapshot: podmień plik i uruchom `seed`. Kluczem dokumentu jest adres URL, bo identyfikatory `doc-…` zmieniają się między snapshotami. Po zmianie schematu bazy stary plik `corpus.db` trzeba zbudować od nowa (API powie to przy starcie).
 
+### Katalog incydentów (EUvsDisinfo)
+
+Z `EUVSDISINFO_API_KEY` każde sprawdzenie porównuje twierdzenia z katalogiem EUvsDisinfo (serwer MCP, narzędzie `search`). Podobny wpis pojawia się w wyniku jako kontekst (`incidents`) pod werdyktem, w WWW i WhatsApp, i nigdy nie zmienia werdyktu, dowodów ani siły podstawy. Do serwera idą tylko wydzielone twierdzenia po maskowaniu danych osobowych. Serwer loguje zapytania. Awaria albo brak klucza daje stan `incidentCatalog`, a nie ostrzeżenie ani błąd. Szczegóły: [docs/data-sources.md](docs/data-sources.md#3-baza-incydentów-euvsdisinfo).
+
 ### Frontend
 
 Jedna strona w stylu gov.pl: formularz (tekst, link albo zdjęcie), postęp i wynik pod formularzem, bez przechodzenia między widokami. Strona wysyła `POST /api/checks` i odpytuje `GET /api/checks/:checkId`; krótki losowy id sprawdzenia trafia do adresu (`/w/<id>`), więc wynik można odświeżyć i udostępnić. Adres API ustawia `VITE_API_URL` w głównym `.env` (domyślnie `http://localhost:3000`).

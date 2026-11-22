@@ -5,7 +5,7 @@ import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { runVerification } from '@prawdowid/agent';
 import type { CaseEscalation } from '@prawdowid/contracts';
-import { fetchPage, openCorpus, searchFactChecks } from '@prawdowid/sources';
+import { fetchPage, openCorpus, searchFactChecks, searchIncidents } from '@prawdowid/sources';
 import type { Context, Hono } from 'hono';
 
 import { createApp } from './app.ts';
@@ -125,11 +125,18 @@ const runner = new JobRunner({
         corpus,
         factchecks: (q) => searchFactChecks(q, { apiKey: env.GOOGLE_FACTCHECK_API_KEY }),
         fetchPage: (url) => fetchPage(url),
+        ...(env.EUVSDISINFO_API_KEY
+          ? {
+              incidents: (q: { query: string }) =>
+                searchIncidents(q, { apiKey: env.EUVSDISINFO_API_KEY }),
+            }
+          : {}),
         ...(judgeModel ? { judgeModel } : {}),
       },
       {
         ...options,
         mode: env.RESEARCH_MODE,
+        jobTimeoutMs: env.CHECK_TIMEOUT_MS,
         ...(env.LLM_TEMPERATURE === undefined ? {} : { temperature: env.LLM_TEMPERATURE }),
       },
     );
@@ -263,6 +270,7 @@ const app = createApp({
   llmConfigured: model !== null,
   health: () => ({
     factchecks: Boolean(env.GOOGLE_FACTCHECK_API_KEY),
+    incidents: Boolean(env.EUVSDISINFO_API_KEY),
     corpusDocuments: corpusInfo.documents,
     corpusVersion: corpusInfo.version,
   }),

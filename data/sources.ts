@@ -615,3 +615,28 @@ export const FACT_CHECK_SOURCES = [
     notes: 'Wymaga klucza Google Cloud API.',
   },
 ] as const satisfies readonly Source[];
+
+// Sprawdzone 2026-11-22: euvsdisinfo.eu nie ma strony z licencją; nota prawna ESDZ pozwala na
+// ponowne wykorzystanie z podaniem źródła. Szczegóły i otwarte pytania: docs/research/euvsdisinfo.md.
+const LICENCE_EUVSDISINFO =
+  'Brak licencji na euvsdisinfo.eu. Nota prawna ESDZ: ponowne wykorzystanie dozwolone z podaniem źródła ' +
+  '(nie obejmuje materiałów stron trzecich). Dostęp do MCP na wniosek; warunki tokenu niepotwierdzone. ' +
+  'Niczego nie przechowujemy w korpusie: zapytanie na żywo, do wyniku trafia tytuł, link i krótki cytat streszczenia.';
+
+/**
+ * Katalog znanych incydentów. To KONTEKST, nie źródło dowodów: dopasowanie nigdy nie zmienia
+ * werdyktu (packages/agent/src/incidents.ts). Do serwera wysyłamy tylko wydzielone, zamaskowane twierdzenia.
+ */
+export const INCIDENT_SOURCES = [
+  {
+    name: 'EUvsDisinfo (East StratCom Task Force ESDZ) – serwer MCP',
+    url: 'https://euvsdisinfo.eu/disinformation-cases/',
+    licence: LICENCE_EUVSDISINFO,
+    kind: 'live',
+    strategy: 'json-api',
+    endpoints: ['https://mcp.euvsd.info/mcp (tools/call: search)'],
+    notes:
+      'Wymaga EUVSDISINFO_API_KEY. Serwer zgłasza logowanie zapytań (Supabase), miejsce przetwarzania nieznane. ' +
+      'Używamy tylko wyników typu claim_review z adresem euvsdisinfo.eu/report/.',
+  },
+] as const satisfies readonly Source[];

@@ -29,3 +29,12 @@ export {
   type PageFailureReason,
   type PageResult,
 } from './fetch-url.ts';
+export {
+  searchIncidents,
+  parseRpc,
+  EUVSDISINFO_MCP_URL,
+  type IncidentDeps,
+  type IncidentHit,
+  type IncidentQuery,
+  type IncidentSearchResult,
+} from './euvsdisinfo.ts';

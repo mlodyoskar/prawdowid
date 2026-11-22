@@ -161,9 +161,7 @@ export function CheckPage() {
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-4 py-8 sm:px-6 sm:py-12">
         <div className="flex flex-col gap-2">
-          <h1 className="m-0 text-display">
-            Brzmi podejrzanie? Sprawdź, zanim uwierzysz.
-          </h1>
+          <h1 className="m-0 text-display">Brzmi podejrzanie? Sprawdź, zanim uwierzysz.</h1>
           <p className="m-0 text-body-lg text-ink-muted">Dostaniesz jasną odpowiedź i dowody.</p>
         </div>
 
@@ -173,11 +171,7 @@ export function CheckPage() {
           aria-busy={busy}
           className="flex flex-col gap-6 rounded-sm bg-surface-alt p-4 sm:p-6"
         >
-          <Field
-            id="claim"
-            label="Wklej wiadomość lub link, albo dodaj zdjęcie"
-            error={formError}
-          >
+          <Field id="claim" label="Wklej wiadomość lub link, albo dodaj zdjęcie" error={formError}>
             <Textarea
               ref={textareaRef}
               id="claim"

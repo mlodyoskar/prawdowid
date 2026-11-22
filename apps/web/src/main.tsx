@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { CheckPage } from './app/check-page.tsx';
 import { DesignPage } from './app/design-page.tsx';
 import { EmailPreviewPage } from './app/email-preview-page.tsx';
+import { OgPage } from './app/og-page.tsx';
 import { WhatsAppDemoPage } from './app/whatsapp-demo-page.tsx';
 
 const root = document.getElementById('root');
@@ -18,6 +19,8 @@ function Page() {
   if (path === '/design') return <DesignPage />;
   if (path === '/whatsapp') return <WhatsAppDemoPage />;
   if (path === '/maile') return <EmailPreviewPage />;
+  // Source of the link preview image, dev only (see og-page.tsx).
+  if (import.meta.env.DEV && path === '/og') return <OgPage />;
   return <CheckPage />;
 }
 

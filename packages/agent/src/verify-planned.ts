@@ -727,7 +727,11 @@ function compose(
     );
   }
   const evidence = [...cited.values()];
+  // Ostrzegamy tylko o materiałach cytowanych przy twierdzeniu. Inne materiały na ten temat
+  // (`relatedIds`) nie są podstawą wyniku, więc ich wiek nie podważa odpowiedzi.
+  const quoted = new Set(claims.flatMap((c) => c.evidenceIds));
   for (const e of evidence) {
+    if (!quoted.has(e.id)) continue;
     if (e.publishedAt && isOlderThan(e.publishedAt, now, ARCHIVAL_AFTER_DAYS)) {
       warnings.push(
         `Materiał archiwalny: „${e.title}” (${e.publishedAt.slice(0, 10)}). Może być nieaktualny.`,

@@ -193,3 +193,26 @@ test('sprawa oznaczona do weryfikacji: ten sam komunikat co w WWW, bez „przeka
     assert.ok(text.trimEnd().endsWith(resultUrl(ORIGIN, 'abc')), 'link na końcu');
   }
 });
+
+test('znany incydent EUvsDisinfo to osobna linia kontekstu po werdykcie, z zastrzeżeniem', () => {
+  const text = formatReply(
+    ok({
+      incidents: [
+        {
+          claimIndex: 0,
+          title: 'Poland prepares to seize Western Ukraine',
+          url: 'https://euvsdisinfo.eu/report/test-case',
+          publisher: 'EUvsDisinfo (East StratCom Task Force ESDZ)',
+          summary: 'x',
+          quote: 'x',
+        },
+      ],
+    }),
+    ORIGIN,
+  );
+  assert.ok(text.startsWith('❌ FAŁSZYWE'));
+  const at = text.indexOf('Kontekst (nie wpływa na ocenę)');
+  assert.ok(at > text.indexOf('Komunikat MON'));
+  assert.ok(text.includes('https://euvsdisinfo.eu/report/test-case'));
+  assert.ok(text.endsWith(`${ORIGIN}/?check=abc`));
+});

@@ -18,7 +18,12 @@ export type AppDeps = {
   cases?: Pick<SqliteCaseStore, 'escalationFor'>;
   /** Brak modelu = brak konfiguracji LLM: nie przyjmujemy zadań. */
   llmConfigured: boolean;
-  health: () => { factchecks: boolean; corpusDocuments: number; corpusVersion?: string | null };
+  health: () => {
+    factchecks: boolean;
+    incidents?: boolean;
+    corpusDocuments: number;
+    corpusVersion?: string | null;
+  };
   webOrigin: string;
   /** Identyfikuje klienta do limitowania żądań (zwykle IP). */
   clientKey: (c: Context) => string;

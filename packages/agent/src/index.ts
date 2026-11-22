@@ -6,7 +6,16 @@ export {
   type VerifyOptions,
   type VerifyResult,
 } from './verify.ts';
-export { runVerification, type RunOptions } from './run.ts';
+export { runVerification, type RunDeps, type RunOptions } from './run.ts';
+export {
+  matchIncidents,
+  withIncidents,
+  type EarlyIncidents,
+  type IncidentDeps,
+  type IncidentOutcome,
+  type IncidentSearch,
+  type WithIncidentsOptions,
+} from './incidents.ts';
 export {
   verifyPlanned,
   type PlanDeps,

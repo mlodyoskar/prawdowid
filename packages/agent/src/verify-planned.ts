@@ -81,6 +81,11 @@ export type PlanOptions = VerifyOptions & {
   /** Domyślnie parametr nie jest wysyłany: część modeli go nie przyjmuje. */
   temperature?: number;
   onStage?: (stage: PlanStage) => void;
+  /**
+   * Wołane raz, gdy twierdzenia są już wydzielone i zamaskowane (przed wyszukiwaniem).
+   * Pozwala uruchomić równolegle kroki, które nie mogą wpływać na werdykt (np. znane incydenty).
+   */
+  onClaims?: (claims: readonly string[]) => void;
 };
 
 export type PlanMetrics = VerifyMetrics & {
@@ -479,6 +484,7 @@ export async function verifyPlanned(
       };
     }
     const checkable = claims.filter((c) => c.checkable);
+    options.onClaims?.(claims.map((c) => c.text));
 
     // 2. Wszystkie zapytania naraz.
     enter('search');

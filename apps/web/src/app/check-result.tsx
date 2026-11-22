@@ -26,6 +26,7 @@ import {
 } from '@/ui';
 
 import { EvidenceSource } from './evidence-source.tsx';
+import { IncidentCatalogLine, IncidentContext } from './incident-context.tsx';
 
 const CLAIM_FORMS = ['twierdzenie', 'twierdzenia', 'twierdzeń'] as const;
 const SOURCE_FORMS = ['źródło', 'źródła', 'źródeł'] as const;
@@ -150,6 +151,10 @@ function OkView({ result, escalation }: { result: OkResult; escalation?: CaseEsc
               claim={claim}
               evidence={claim.evidenceIds.flatMap((id) => byId.get(id) ?? [])}
             />
+            <IncidentContext
+              incidents={(result.incidents ?? []).filter((m) => m.claimIndex === i)}
+              verdict={claim.verdict}
+            />
           </ClaimCard>
         </div>
       ))}
@@ -167,10 +172,13 @@ function OkView({ result, escalation }: { result: OkResult; escalation?: CaseEsc
         </Notice>
       ) : null}
 
-      {result.searched && result.searched.length > 0 ? (
+      {(result.searched && result.searched.length > 0) || result.incidentCatalog ? (
         <div className="flex flex-col gap-1">
           <Eyebrow>Gdzie sprawdziliśmy</Eyebrow>
-          <p className="m-0 text-caption text-ink-muted">{result.searched.join(' · ')}</p>
+          {result.searched && result.searched.length > 0 ? (
+            <p className="m-0 text-caption text-ink-muted">{result.searched.join(' · ')}</p>
+          ) : null}
+          <IncidentCatalogLine state={result.incidentCatalog} />
         </div>
       ) : null}
     </div>

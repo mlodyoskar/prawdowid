@@ -39,13 +39,19 @@ zgłoszenie
   → twierdzenia + plan zapytań dla każdego                      (model, 1 wywołanie)
   → wszystkie zapytania naraz                                   (kod, równolegle)
   → sędzia dla każdego twierdzenia, bez narzędzi                (model, równolegle)
+  → opcjonalnie doczytanie dokumentu, który dotyczy twierdzenia
+    wprost, ale go nie rozstrzygnął, i ponowna ocena            (kod + model)
   → opcjonalnie 1 runda poprawy zapytań, gdy nic nie dotyczy
     twierdzenia wprost i jest zapas czasu                       (model + kod)
   → cytaty, zgodność werdyktu z dowodami, siła podstawy, status (kod)
   → wynik
 ```
 
-Dwa wywołania modelu jedno po drugim w typowym przypadku, cztery przy rundzie poprawy.
+Dwa wywołania modelu jedno po drugim w typowym przypadku, trzy przy doczytaniu, cztery przy rundzie poprawy.
+
+**Wybór dowodów w trybie plan.** Kod zbiera do sześciu trafień z każdego zapytania. Przy wyborze 12 fragmentów na twierdzenie pierwszeństwo mają wyniki Google Fact Check. Pozostałe miejsca zajmują fragmenty korpusu. W rundzie poprawy nowy fact-check może wyprzeć fragment korpusu. Sędzia sprawdza, czy dana publikacja dotyczy tego samego twierdzenia.
+
+**Doczytanie dokumentu.** Wyszukiwanie zwraca najwyżej dwa fragmenty z dokumentu, a o tym, które, decyduje dopasowanie słów, nie to, gdzie jest odpowiedź. Gdy sędzia uzna dokument za dotyczący twierdzenia wprost, ale nie znajdzie w nim rozstrzygnięcia, kod dociąga pozostałe fragmenty (do 12 z najwyżej 2 dokumentów) i sędzia ocenia jeszcze raz, już tylko na tych dokumentach. Jeśli druga ocena też nie rozstrzyga, zostaje pierwsza. Doczytanie startuje tylko przed upływem 16 s od początku sprawdzenia (`deepenBudgetMs`).
 
 ### Czym się różnią
 
@@ -66,7 +72,7 @@ Ten sam zestaw testowy na obu trybach. Porównujemy: macro-F1 werdyktów, odsete
 
 Sędzia dostaje jedno twierdzenie i listę dowodów. Dla każdego dowodu zwraca:
 
-- **relację** do twierdzenia: `direct` (dotyczy wprost tego twierdzenia; dla fact-checka: sprawdzał to samo twierdzenie), `related` (ten sam temat) albo `unrelated`,
+- **relację** do twierdzenia: `direct` (ta sama sprawa: to samo zdarzenie, dokument, decyzja albo osoba, nawet gdy twierdzenie podaje inną datę, miejsce czy liczbę; dla fact-checka: sprawdzał to samo twierdzenie), `related` (ten sam temat) albo `unrelated`,
 - **rolę**: `supports`, `refutes` albo `context`,
 - **cytat**: dosłowny fragment materiału,
 - flagę, że materiał zawiera polecenia skierowane do systemu.
@@ -80,6 +86,7 @@ Kod stosuje reguły w tej kolejności:
 3. Gdy ocalałe dowody `direct` wskazują w obie strony, wynik dostaje znacznik rozbieżności, a siła podstawy spada do `niska`.
 4. Gdy werdykt to `brak wystarczających dowodów`, a któreś źródło było niedostępne, twierdzenie trafia do listy `unchecked` z powodem. Jeśli nie zostało żadne ocenione twierdzenie, całe sprawdzenie kończy się statusem `error` z kodem `sources_unavailable`.
 5. Twierdzenie, które model przy wydzielaniu uznał za opinię lub prognozę, dostaje `nie podlega weryfikacji` bez wyszukiwania.
+6. Jeden dokument korpusu może dać kilka fragmentów. Do wyniku trafiają fragmenty, które potwierdzają lub przeczą, a z dokumentu bez takich fragmentów: jeden fragment kontekstu.
 
 ### Siła podstawy
 
@@ -106,9 +113,21 @@ Typy są w [packages/contracts](../packages/contracts/src/index.ts). Pola dodane
 | `searched`                   | Źródła, w których faktycznie szukano                                                | „Gdzie sprawdziliśmy”        |
 | `mode`                       | Tryb, który wyprodukował wynik                                                      | brak (do ewaluacji)          |
 
+| `reusedFrom` | Wynik skopiowany z wcześniejszego sprawdzenia tego samego zgłoszenia (czas tamtego) | „Zapis sprawdzenia” |
+
+## Spójność kanałów i powtórzeń
+
+Wymóg: to samo zgłoszenie daje ten sam werdykt i te same dowody w WWW i WhatsApp oraz przy powtórzeniu. Pomiar (ślady w [evals/diagnostics](../evals/diagnostics/), wyniki w [evals/results/latest.md](../evals/results/latest.md)) pokazał, że kanał nie zmienia wejścia: model dostaje z obu ten sam tekst. Rozrzut bierze się z planu zapytań, który model formułuje za każdym razem trochę inaczej, także przy temperaturze 0. Inne zapytania dają inne fragmenty korpusu, a sędzia inny materiał. Dlatego:
+
+- **Jeden wynik na zgłoszenie** ([apps/api/src/reuse.ts](../apps/api/src/reuse.ts), `JobRunner`). Klucz to skrót zamaskowanego tekstu po normalizacji (NFC, małe litery, zwinięte białe znaki), skrót bajtów obrazu oraz konfiguracji: tryb, model, sędzia, temperatura, wersja korpusu. Przez `CHECK_REUSE_HOURS` (domyślnie 24 h) to samo zgłoszenie dostaje kopię wyniku z własnym numerem i polem `reusedFrom`. Zgłoszenie wysłane w trakcie trwającego sprawdzenia do niego dołącza. Kopiujemy tylko pełne wyniki `ok`: bez awarii źródeł, niesprawdzonych tez, nieodczytanych stron i przerwanego doczytania. Po błędzie każde czekające zgłoszenie jest sprawdzane samodzielnie. Kopia żyje w tabeli `checks`, więc znika z retencją albo po usunięciu sesji. Numeru pierwotnego sprawdzenia nie ujawniamy.
+- **Temperatura 0** domyślnie (`LLM_TEMPERATURE`). Zmniejsza rozrzut przy pierwszym sprawdzeniu i parafrazach, ale go nie usuwa.
+- **Kolejność dowodów:** najpierw materiały wspierające albo obalające, potem kontekst. WhatsApp pokazuje wszystkie publikacje-podstawy (do trzech na tezę), te same co WWW.
+
+Granice: parafraza to inne zgłoszenie i może dostać inny wynik. Zdjęcie wysłane przez WhatsApp jest przekompresowane przez Meta, więc ma inne bajty niż ten sam plik wgrany na stronę: dla zrzutów ekranu spójność między kanałami nie jest gwarantowana. Utrwalony zostaje także błędny werdykt, najdłużej na czas ważności. Łączenie zgłoszeń w toku działa w jednym procesie, czyli przy jednej replice API.
+
 ## Pierwszy test na żywo (2026-11-21)
 
-13 zapytań (część powtarzana trzykrotnie) na korpusie mockowym i prawdziwym Google Fact Check, przez OpenRouter. To nie jest jeszcze ewaluacja: przypadków jest za mało, a korpus jest testowy.
+13 zapytań (część powtarzana trzykrotnie) na ówczesnym korpusie testowym (sprzed importu prawdziwego snapshotu, dziś usuniętym) i prawdziwym Google Fact Check, przez OpenRouter. To nie jest jeszcze ewaluacja: przypadków było za mało, a korpus był testowy.
 
 | Konfiguracja                                | Mediana czasu | Najdłużej | Tokeny (17 sprawdzeń) |
 | ------------------------------------------- | ------------- | --------- | --------------------- |
@@ -134,14 +153,14 @@ Gotowe:
 
 - API, kolejka zadań, zapis przebiegu, maskowanie danych osobowych, pobieranie URL-i, korpus FTS, klient Fact Check, tryb `agent`.
 - Tryb `plan`: wydzielanie twierdzeń z planem zapytań, równoległe wyszukiwanie, sędzia bez narzędzi, reguły w kodzie, siła podstawy, runda poprawy. Sprawdzony na prawdziwych modelach (wyżej).
+- Prawdziwy korpus: import snapshotu JSONL z walidacją, wyszukiwanie po fragmentach i całe fragmenty (do 600 znaków) jako materiał dla sędziego i podstawa cytatów. Jeden dokument może dać dwa materiały (różne fragmenty, ten sam adres). Opis: [README](../README.md#korpus).
 
 Do zrobienia, w kolejności:
 
-1. **Prawdziwy korpus** zamiast danych mockowych (plik JSONL, potem baza).
-2. **Zestaw testowy i runner ewaluacji**: JSONL z przypadkami, uruchomienie obu trybów, tabela mierników.
-3. **Dłuższe fragmenty z korpusu.** Wyszukiwanie zwraca wycinek około 40 słów, a to mało dla sędziego i dla cytatów.
-4. **Źródła `live`** (IMGW, RSO, Odyseusz) jako kolejne narzędzia wyszukiwania.
-5. **Obrazy w Fact Check** (`claims:imageSearch`). Wymaga publicznego, krótkotrwałego adresu obrazu.
-6. **Etapy zadania dla ekranu „Sprawdzamy”.** Tryb `plan` zgłasza etapy przez `onStage`, ale API ich jeszcze nie zapisuje.
-7. **Langfuse.**
-8. **Wspólny kod wstępnego przetwarzania.** Tryb `plan` powiela z `verify()` maskowanie, pobieranie stron i ostrzeżenia, żeby nie przebudowywać cudzego kodu w trakcie prac. Do scalenia, gdy oba tryby się ustabilizują.
+1. **Zestaw testowy i runner ewaluacji**: JSONL z przypadkami, uruchomienie obu trybów, tabela mierników.
+2. **Drugi typ źródeł w korpusie**: artykuły fact-checkingowe z treścią (pola `twierdzenie`, `ocena_zrodla` w snapshocie są jeszcze puste). Import przyjmuje już `klasa_zrodla: wtorne` i ocenę.
+3. **Źródła `live`** (IMGW, RSO, Odyseusz) jako kolejne narzędzia wyszukiwania.
+4. **Obrazy w Fact Check** (`claims:imageSearch`). Wymaga publicznego, krótkotrwałego adresu obrazu.
+5. **Etapy zadania dla ekranu „Sprawdzamy”.** Tryb `plan` zgłasza etapy przez `onStage`, ale API ich jeszcze nie zapisuje.
+6. **Langfuse.**
+7. **Wspólny kod wstępnego przetwarzania.** Tryb `plan` powiela z `verify()` maskowanie, pobieranie stron i ostrzeżenia, żeby nie przebudowywać cudzego kodu w trakcie prac. Do scalenia, gdy oba tryby się ustabilizują.

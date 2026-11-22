@@ -320,3 +320,43 @@ test('reguły: materiałów tylko z tego samego tematu trafia do wyniku najwyże
     ['doc_1', 'doc_2'],
   );
 });
+
+test('reguły: z jednego dokumentu zostają fragmenty rozstrzygające albo jeden fragment kontekstu', () => {
+  const fragment = (id: string, excerpt: string, url = 'https://www.gov.pl/web/rcb/seminarium') =>
+    doc({ id, url, excerpt, fragmentId: id });
+  const evidence = available(
+    fragment('doc_1', 'Rusza VIII Seminarium Cyberbezpieczeństwa w Warszawie.'),
+    fragment('doc_2', 'W seminarium weźmie udział około 300 przedstawicieli administracji.'),
+    fragment('doc_3', 'W programie przewidziano wystąpienia przedstawicieli ministerstw.'),
+    fragment('doc_4', 'Narada służbowa trwała dwa dni.', 'https://www.gov.pl/web/kgpsp/narada'),
+    fragment(
+      'doc_5',
+      'W naradzie udział wzięli komendanci.',
+      'https://www.gov.pl/web/kgpsp/narada',
+    ),
+  );
+  const item = (id: string, stance: 'refutes' | 'context', quote: string) => ({
+    id,
+    relation: 'direct' as const,
+    stance,
+    quote,
+    addressesModel: false,
+  });
+  const guarded = applyGuardrails(
+    judgement({
+      items: [
+        item('doc_1', 'context', 'Rusza VIII Seminarium Cyberbezpieczeństwa'),
+        item('doc_2', 'refutes', 'weźmie udział około 300 przedstawicieli'),
+        item('doc_3', 'context', 'przewidziano wystąpienia przedstawicieli ministerstw'),
+        item('doc_4', 'context', 'Narada służbowa trwała dwa dni'),
+        item('doc_5', 'context', 'W naradzie udział wzięli komendanci'),
+      ],
+    }),
+    evidence,
+  );
+  assert.equal(guarded.verdict, 'fałszywe');
+  assert.deepEqual(
+    guarded.evidenceUse.map((u) => u.id),
+    ['doc_2', 'doc_4'],
+  );
+});

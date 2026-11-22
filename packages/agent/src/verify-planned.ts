@@ -41,6 +41,11 @@ const MAX_SEARCHES_PER_CLAIM = 4;
 const MAX_REFINE_SEARCHES = 3;
 const MAX_RESULTS_PER_SEARCH = 6;
 const MAX_EVIDENCE_PER_CLAIM = 12;
+/** Doczytanie: z tylu dokumentów i po tyle fragmentów na dokument. */
+const MAX_DEEPEN_DOCUMENTS = 2;
+const MAX_DEEPEN_FRAGMENTS = 12;
+/** Doczytanie startuje tylko, gdy od początku sprawdzenia minęło mniej niż tyle (druga ocena trwa około 10 s). */
+const DEFAULT_DEEPEN_BUDGET_MS = 16_000;
 /** Runda poprawy startuje tylko, gdy od początku sprawdzenia minęło mniej niż tyle. */
 const DEFAULT_REFINE_BUDGET_MS = 12_000;
 
@@ -71,6 +76,8 @@ export type PlanOptions = VerifyOptions & {
   /** 0 wyłącza rundę poprawy zapytań. */
   maxRefineRounds?: number;
   refineBudgetMs?: number;
+  /** 0 wyłącza doczytywanie dokumentów. */
+  deepenBudgetMs?: number;
   /** Domyślnie parametr nie jest wysyłany: część modeli go nie przyjmuje. */
   temperature?: number;
   onStage?: (stage: PlanStage) => void;
@@ -81,6 +88,8 @@ export type PlanMetrics = VerifyMetrics & {
   modelCalls: number;
   claims: number;
   refinedClaims: number;
+  /** Twierdzenia ocenione ponownie po doczytaniu pozostałych fragmentów dokumentu. */
+  deepenedClaims: number;
   /** Rundy poprawy przerwane błędem lub limitem czasu: wynik opiera się wtedy na pierwszej ocenie. */
   refineErrors: number;
   /** Ile werdyktów sędziego kod zdegradował z braku oparcia w dowodach. */
@@ -124,6 +133,7 @@ export async function verifyPlanned(
   const stageMs: Partial<Record<PlanStage, number>> = {};
   let modelCalls = 0;
   let refinedClaims = 0;
+  let deepenedClaims = 0;
   let refineErrors = 0;
   let claims: ClaimState[] = [];
   const piiFound = new Set<PiiKind>();
@@ -195,6 +205,7 @@ export async function verifyPlanned(
     modelCalls,
     claims: claims.length,
     refinedClaims,
+    deepenedClaims,
     refineErrors,
     downgradedVerdicts: claims.filter((c) => c.guarded?.downgraded).length,
     stageMs: { ...stageMs },
@@ -259,6 +270,7 @@ export async function verifyPlanned(
 
   const search = async (claim: ClaimState, requests: readonly SearchRequest[]) => {
     const results = await Promise.all(requests.map((r) => runSearch(r)));
+    const candidates = new Map(claim.evidence);
     for (const [i, result] of results.entries()) {
       const request = requests[i];
       if (!request) continue;
@@ -267,15 +279,28 @@ export async function verifyPlanned(
         continue;
       }
       for (const hit of result.items.slice(0, MAX_RESULTS_PER_SEARCH)) {
-        if (claim.evidence.size >= MAX_EVIDENCE_PER_CLAIM) break;
-        const e = registry.register(hit);
-        if (!noted.has(e.id)) {
-          noted.add(e.id);
-          registry.noteInjection(e.id, `${e.title}\n${e.excerpt}`);
-        }
-        claim.evidence.set(e.id, e);
+        const evidence = registry.register(hit);
+        candidates.set(evidence.id, evidence);
       }
     }
+    // Wspólny limit stosujemy po zebraniu wyników ze wszystkich zapytań.
+    // W obrębie źródła zachowujemy ranking wyszukiwania i kolejność zapytań.
+    const ranked = [...candidates.values()].toSorted(
+      (a, b) => Number(b.kind === 'factcheck') - Number(a.kind === 'factcheck'),
+    );
+    const limit = Math.max(MAX_EVIDENCE_PER_CLAIM, claim.evidence.size);
+    let added = false;
+    const selected = new Map<string, Evidence>();
+    for (const e of ranked.slice(0, limit)) {
+      if (!claim.evidence.has(e.id)) added = true;
+      if (!noted.has(e.id)) {
+        noted.add(e.id);
+        registry.noteInjection(e.id, `${e.title}\n${e.excerpt}`);
+      }
+      selected.set(e.id, e);
+    }
+    claim.evidence = selected;
+    return added;
   };
 
   const askJudge = (claim: ClaimState, evidence: readonly Evidence[]) =>
@@ -289,17 +314,22 @@ export async function verifyPlanned(
             claim.text,
             evidence,
             [...claim.failures].map(([label, message]) => `${label} (${message})`),
+            // Sędzia ocenia twierdzenie w znaczeniu, jakie nadaje mu wiadomość (po maskowaniu danych).
+            { text: masked.text, hasImage: Boolean(input.image) },
           ),
         },
       ],
       Judgement,
     );
 
-  const judge = async (claim: ClaimState) => {
+  /** `only` zawęża ocenę do wybranych materiałów (doczytanie dokumentu). */
+  const judge = async (claim: ClaimState, only?: (e: Evidence) => boolean) => {
     // Materiał, w którym kod wykrył polecenia dla systemu, w ogóle nie trafia do sędziego:
     // nie może wtedy wpłynąć ani na werdykt, ani na dowody.
     const suspect = new Set(registry.injectionSignals.map((s) => s.source));
-    let visible = [...claim.evidence.values()].filter((e) => !suspect.has(e.id));
+    let visible = [...claim.evidence.values()].filter(
+      (e) => !suspect.has(e.id) && (only?.(e) ?? true),
+    );
 
     // Nie ma czego oceniać, a źródło zawiodło: wynik jest przesądzony, model niczego tu nie doda.
     if (visible.length === 0 && claim.failures.size > 0) {
@@ -332,6 +362,46 @@ export async function verifyPlanned(
     );
   };
 
+  /**
+   * Dokument dotyczy twierdzenia wprost, ale znalezione fragmenty go nie rozstrzygają:
+   * odpowiedź bywa w innym fragmencie tego samego dokumentu, więc doczytujemy resztę i oceniamy ponownie.
+   */
+  const deepen = async (claim: ClaimState): Promise<void> => {
+    const readFragments = deps.corpus.fragments;
+    if (!readFragments || !claim.judgement) return;
+    const first = { judgement: claim.judgement, guarded: claim.guarded };
+    const direct = new Set<string>();
+    const documents = new Set<string>();
+    for (const item of claim.judgement.items) {
+      const e = claim.evidence.get(item.id);
+      if (item.relation !== 'direct' || !e) continue;
+      direct.add(e.id);
+      if (e.kind === 'corpus' && documents.size < MAX_DEEPEN_DOCUMENTS) documents.add(e.url);
+    }
+    const before = claim.evidence.size;
+    for (const url of documents) {
+      const result = readFragments(url, { limit: MAX_DEEPEN_FRAGMENTS });
+      if (!result.ok) {
+        claim.failures.set(SOURCE_LABEL.search_corpus, result.message);
+        continue;
+      }
+      for (const hit of result.items) {
+        const e = registry.register(hit);
+        if (!noted.has(e.id)) {
+          noted.add(e.id);
+          registry.noteInjection(e.id, `${e.title}\n${e.excerpt}`);
+        }
+        claim.evidence.set(e.id, e);
+      }
+    }
+    if (claim.evidence.size === before) return;
+    deepenedClaims++;
+    // Druga ocena tylko na doczytanych dokumentach i na tym, co już dotyczyło twierdzenia wprost.
+    await judge(claim, (e) => direct.has(e.id) || (e.kind === 'corpus' && documents.has(e.url)));
+    // Doczytanie niczego nie rozstrzygnęło: zostaje pierwsza ocena, oparta na wszystkich materiałach.
+    if (claim.guarded?.verdict === 'brak wystarczających dowodów') Object.assign(claim, first);
+  };
+
   /** Inne zapytania dla twierdzenia, którego nic nie dotyczyło wprost, i ponowna ocena. */
   const refine = async (claim: ClaimState): Promise<void> => {
     const refinement = await callModel(
@@ -354,10 +424,8 @@ export async function verifyPlanned(
       (s) => !known.has(searchKey(s)),
     );
     if (fresh.length === 0) return;
-    const before = claim.evidence.size;
     claim.searches.push(...fresh);
-    await search(claim, fresh);
-    if (claim.evidence.size === before) return;
+    if (!(await search(claim, fresh))) return;
     refinedClaims++;
     await judge(claim);
   };
@@ -420,8 +488,28 @@ export async function verifyPlanned(
     enter('judge');
     await Promise.all(checkable.map((c) => judge(c)));
 
-    // 4. Runda poprawy: tylko dla twierdzeń, których nic nie dotyczyło wprost, i tylko przy zapasie czasu.
     const refineBudgetMs = options.refineBudgetMs ?? DEFAULT_REFINE_BUDGET_MS;
+
+    // 4. Doczytanie dokumentów, które dotyczą twierdzenia wprost, ale go nie rozstrzygnęły.
+    const undecided = checkable.filter(
+      (c) => c.guarded?.hasDirect && c.guarded.verdict === 'brak wystarczających dowodów',
+    );
+    const deepenBudgetMs = options.deepenBudgetMs ?? DEFAULT_DEEPEN_BUDGET_MS;
+    if (undecided.length > 0 && deps.corpus.fragments && elapsed() < deepenBudgetMs) {
+      enter('refine');
+      await Promise.all(
+        undecided.map(async (claim) => {
+          // Pierwsza ocena już jest: błąd albo limit czasu przy doczytaniu nie może jej skasować.
+          try {
+            await deepen(claim);
+          } catch {
+            refineErrors++;
+          }
+        }),
+      );
+    }
+
+    // 5. Runda poprawy: tylko dla twierdzeń, których nic nie dotyczyło wprost, i tylko przy zapasie czasu.
     for (let round = 0; round < (options.maxRefineRounds ?? 1); round++) {
       const candidates = checkable.filter((c) => c.guarded && !c.guarded.hasDirect);
       if (candidates.length === 0 || elapsed() >= refineBudgetMs) break;
@@ -437,7 +525,7 @@ export async function verifyPlanned(
         }),
       );
     }
-    // 5. Złożenie wyniku: tu rozstrzyga już tylko kod.
+    // 6. Złożenie wyniku: tu rozstrzyga już tylko kod.
     enter('compose');
     if (piiFound.size > 0) {
       preWarnings.push(
@@ -638,9 +726,6 @@ function compose(
         `Materiał archiwalny: „${e.title}” (${e.publishedAt.slice(0, 10)}). Może być nieaktualny.`,
       );
     }
-  }
-  if (evidence.some((e) => e.isMock)) {
-    warnings.push('Część dowodów pochodzi z danych testowych (mock), a nie z prawdziwych źródeł.');
   }
 
   const searched = TOOL_NAMES.filter((tool) => succeeded(tool) > 0).map(

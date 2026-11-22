@@ -77,13 +77,9 @@ test('statusy techniczne: „To nie jest werdykt” i żadnej etykiety werdyktu'
   }
 });
 
-test('dokument mockowy jest oznaczony, a mock:// nie jest linkiem', () => {
-  const text = formatReply(
-    ok({ evidence: [evidence({ isMock: true, url: 'mock://mon/1' })] }),
-    ORIGIN,
-  );
-  assert.ok(text.includes('Dane demonstracyjne – to nie jest prawdziwa publikacja.'));
-  assert.ok(!text.includes('mock://'));
+test('adres spoza http(s) nie jest wypisywany jako link', () => {
+  const text = formatReply(ok({ evidence: [evidence({ url: 'javascript:alert(1)' })] }), ORIGIN);
+  assert.ok(!text.includes('javascript:'));
 });
 
 test('brak dowodów: uczciwe wstrzymanie się i ostrzeżenie przed udostępnianiem', () => {
@@ -131,4 +127,48 @@ test('długi wynik mieści się w limicie WhatsApp i nadal kończy się linkiem'
   );
   assert.ok(text.length <= WHATSAPP_TEXT_LIMIT, String(text.length));
   assert.ok(text.endsWith(`${ORIGIN}/?check=abc`));
+});
+
+test('pokazuje każdą publikację-podstawę werdyktu jak WWW, kontekst zostawia w pełnym wyniku', () => {
+  const text = formatReply(
+    ok({
+      claims: [
+        claim({
+          evidenceIds: ['ctx', 'e1', 'e2'],
+          evidenceUse: [
+            { id: 'ctx', stance: 'context', quote: 'Inna sprawa.' },
+            { id: 'e1', stance: 'refutes', quote: 'MON nie planuje przywrócenia poboru.' },
+            { id: 'e2', stance: 'refutes', quote: 'Pobór nie wraca.' },
+          ],
+        }),
+      ],
+      evidence: [
+        evidence({ id: 'ctx', url: 'https://www.gov.pl/kontekst', title: 'Inna sprawa' }),
+        evidence(),
+        evidence({ id: 'e2', url: 'https://www.gov.pl/drugi', excerpt: 'Pobór nie wraca.' }),
+      ],
+    }),
+    ORIGIN,
+  );
+  assert.ok(text.includes('https://www.gov.pl/web/obrona-narodowa/x'));
+  assert.ok(text.includes('https://www.gov.pl/drugi'));
+  assert.ok(!text.includes('https://www.gov.pl/kontekst'));
+  assert.ok(text.includes('Pozostałe źródła (1) w pełnym wyniku.'));
+});
+
+test('bez podstawy werdyktu pokazuje pierwszy materiał', () => {
+  const text = formatReply(
+    ok({
+      claims: [
+        claim({
+          verdict: 'brak wystarczających dowodów',
+          evidenceUse: [
+            { id: 'e1', stance: 'context', quote: 'MON nie planuje przywrócenia poboru.' },
+          ],
+        }),
+      ],
+    }),
+    ORIGIN,
+  );
+  assert.ok(text.includes('https://www.gov.pl/web/obrona-narodowa/x'));
 });

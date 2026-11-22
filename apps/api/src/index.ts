@@ -12,6 +12,7 @@ import { estimateCostUsd } from './cost.ts';
 import { loadEnv } from './env.ts';
 import { JobRunner, SqliteJobStore } from './jobs.ts';
 import { resolveModel } from './model.ts';
+import { isReusable, reuseKey } from './reuse.ts';
 import { GraphClient } from './whatsapp/graph.ts';
 import { WhatsAppChannel } from './whatsapp/webhook.ts';
 
@@ -50,6 +51,14 @@ log('research_mode', { mode: env.RESEARCH_MODE });
 
 mkdirSync(dirname(env.CHECKS_DB_PATH), { recursive: true });
 const corpus = openCorpus(env.CORPUS_DB_PATH);
+const corpusInfo = corpus.info();
+if (corpusInfo.documents === 0) {
+  log(
+    'corpus_empty',
+    { path: env.CORPUS_DB_PATH, hint: 'pnpm --filter @prawdowid/sources seed' },
+    'warn',
+  );
+}
 const store = new SqliteJobStore(env.CHECKS_DB_PATH);
 
 const interrupted = store.failInterrupted(new Date());
@@ -70,6 +79,15 @@ const price =
     ? { inputPerMTok: env.LLM_PRICE_INPUT_PER_MTOK, outputPerMTok: env.LLM_PRICE_OUTPUT_PER_MTOK }
     : null;
 
+// Wszystko, od czego zależy wynik: zmiana modelu, trybu, temperatury albo korpusu unieważnia gotowe wyniki.
+const reuseSalt = JSON.stringify([
+  env.RESEARCH_MODE,
+  env.LLM_MODEL ?? null,
+  env.LLM_JUDGE_MODEL ?? null,
+  env.LLM_TEMPERATURE ?? null,
+  corpusInfo.version,
+]);
+
 // Kanał WhatsApp korzysta z tego samego runnera; `onDone` niżej odsyła mu wyniki.
 let whatsapp: WhatsAppChannel | undefined;
 
@@ -78,6 +96,15 @@ const runner = new JobRunner({
   concurrency: env.MAX_CONCURRENT_CHECKS,
   maxQueued: env.MAX_QUEUED_CHECKS,
   timeoutMs: env.CHECK_TIMEOUT_MS,
+  ...(env.CHECK_REUSE_HOURS > 0
+    ? {
+        reuse: {
+          key: (input) => reuseKey(input, reuseSalt),
+          ttlMs: env.CHECK_REUSE_HOURS * 3600_000,
+          isReusable,
+        },
+      }
+    : {}),
   run: async (input, options) => {
     if (!model) throw new Error('LLM not configured');
     const result = await runVerification(
@@ -96,7 +123,14 @@ const runner = new JobRunner({
       },
     );
     const costUsd = estimateCostUsd(result.metrics.usage, price);
-    return costUsd === undefined ? result : { ...result, metrics: { ...result.metrics, costUsd } };
+    return {
+      ...result,
+      metrics: {
+        ...result.metrics,
+        ...(costUsd === undefined ? {} : { costUsd }),
+        ...(corpusInfo.version === null ? {} : { corpusVersion: corpusInfo.version }),
+      },
+    };
   },
   // Log bez treści pytania (minimalizacja danych).
   onDone: (checkId, { response, metrics }) => {
@@ -182,7 +216,8 @@ const app = createApp({
   llmConfigured: model !== null,
   health: () => ({
     factchecks: Boolean(env.GOOGLE_FACTCHECK_API_KEY),
-    corpusDocuments: corpus.count(),
+    corpusDocuments: corpusInfo.documents,
+    corpusVersion: corpusInfo.version,
   }),
   webOrigin: env.WEB_ORIGIN,
   clientKey,
@@ -195,7 +230,12 @@ const app = createApp({
 });
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) =>
-  log('server_started', { port: info.port, corpusDocuments: corpus.count() }),
+  log('server_started', {
+    port: info.port,
+    corpusDocuments: corpusInfo.documents,
+    corpusFragments: corpusInfo.fragments,
+    corpusVersion: corpusInfo.version,
+  }),
 );
 
 const shutdown = async () => {

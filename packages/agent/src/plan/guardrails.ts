@@ -82,7 +82,7 @@ export function applyGuardrails(
     });
   }
 
-  const items = [...kept.values()];
+  const items = trimContext([...kept.values()]);
   const directItems = items.filter((i) => i.direct);
   const supports = directItems.filter((i) => i.stance === 'supports');
   const refutes = directItems.filter((i) => i.stance === 'refutes');
@@ -110,7 +110,11 @@ export function applyGuardrails(
   return {
     verdict,
     downgraded,
-    evidenceUse: items.map(({ id, stance, quote }) => ({ id, stance, quote })),
+    // Najpierw materiały, które wspierają albo obalają twierdzenie, potem kontekst: pierwsze źródło
+    // w WWW i w skróconej odpowiedzi WhatsApp to zawsze podstawa werdyktu, nie przypadkowy kontekst.
+    evidenceUse: items
+      .toSorted((a, b) => Number(a.stance === 'context') - Number(b.stance === 'context'))
+      .map(({ id, stance, quote }) => ({ id, stance, quote })),
     basis: basisFor[verdict].map((i) => i.evidence),
     discrepancy: supports.length > 0 && refutes.length > 0,
     hasDirect: directItems.length > 0,
@@ -118,4 +122,20 @@ export function applyGuardrails(
     quarantined,
     notes,
   };
+}
+
+/**
+ * Jeden dokument może dać kilka fragmentów. Do wyniku trafiają te, które coś rozstrzygają,
+ * a gdy żaden nie rozstrzyga: jeden fragment kontekstu na dokument.
+ */
+function trimContext(items: Kept[]): Kept[] {
+  const deciding = new Set(items.filter((i) => i.stance !== 'context').map((i) => i.evidence.url));
+  const withContext = new Set<string>();
+  return items.filter((item) => {
+    if (item.stance !== 'context') return true;
+    const url = item.evidence.url;
+    if (deciding.has(url) || withContext.has(url)) return false;
+    withContext.add(url);
+    return true;
+  });
 }

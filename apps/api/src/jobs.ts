@@ -218,6 +218,8 @@ export type JobRunnerOptions = {
   timeoutMs: number;
   now?: () => Date;
   onDone?: (checkId: string, result: VerifyResult) => void;
+  /** Zadanie usunięte (usunięcie sesji w dowolnym kanale): sprzątanie danych pochodnych. */
+  onDelete?: (checkId: string) => void;
   /**
    * Ponowne użycie wyniku (reuse.ts): klucz zgłoszenia albo `null`, gdy zgłoszenia nie łączymy.
    * Bez tej opcji każde zgłoszenie jest sprawdzane od nowa.
@@ -244,8 +246,8 @@ type InFlight = { leader: string; followers: QueuedJob[] };
  * po awarii każde czekające zgłoszenie jest sprawdzane samodzielnie.
  */
 export class JobRunner {
-  readonly #opts: Required<Omit<JobRunnerOptions, 'onDone' | 'reuse'>> &
-    Pick<JobRunnerOptions, 'onDone' | 'reuse'>;
+  readonly #opts: Required<Omit<JobRunnerOptions, 'onDone' | 'onDelete' | 'reuse'>> &
+    Pick<JobRunnerOptions, 'onDone' | 'onDelete' | 'reuse'>;
   readonly #queue: QueuedJob[] = [];
   readonly #running = new Map<string, { controller: AbortController; done: Promise<void> }>();
   readonly #inFlight = new Map<string, InFlight>();
@@ -297,6 +299,7 @@ export class JobRunner {
       flight.followers = flight.followers.filter((f) => f.id !== id);
     }
     this.#running.get(id)?.controller.abort();
+    this.#opts.onDelete?.(id);
     return this.#opts.store.delete(id);
   }
 

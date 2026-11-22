@@ -7,12 +7,15 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 
+import type { SqliteCaseStore } from './cases.ts';
 import type { JobRunner, JobStore } from './jobs.ts';
 import { FixedWindowLimiter, hashClientKey } from './rate-limit.ts';
 
 export type AppDeps = {
   runner: Pick<JobRunner, 'enqueue' | 'delete' | 'stats'>;
   store: Pick<JobStore, 'get'>;
+  /** Sprawy moderatora: oznaczenie do weryfikacji dołączane do wyniku. */
+  cases?: Pick<SqliteCaseStore, 'escalationFor'>;
   /** Brak modelu = brak konfiguracji LLM: nie przyjmujemy zadań. */
   llmConfigured: boolean;
   health: () => { factchecks: boolean; corpusDocuments: number; corpusVersion?: string | null };
@@ -141,7 +144,12 @@ export function createApp(deps: AppDeps) {
   app.get('/api/checks/:checkId', rateLimiter(getLimiter, 'GET /api/checks/:id', deps), (c) => {
     const job = deps.store.get(c.req.param('checkId'));
     if (!job) return c.json({ error: 'not_found', message: 'Nie ma takiego sprawdzenia.' }, 404);
-    return c.json(job, 200, job.state === 'done' ? {} : { 'Retry-After': '1' });
+    const escalation = job.state === 'done' ? deps.cases?.escalationFor(job.checkId) : undefined;
+    return c.json(
+      escalation ? { ...job, escalation } : job,
+      200,
+      job.state === 'done' ? {} : { 'Retry-After': '1' },
+    );
   });
 
   app.delete('/api/checks/:checkId', (c) => {

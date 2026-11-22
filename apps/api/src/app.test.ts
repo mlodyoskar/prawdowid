@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { CheckJob } from '@prawdowid/contracts';
+import { CheckJob } from '@prawdowid/contracts';
 
 import { createApp, type AppDeps } from './app.ts';
 
@@ -122,4 +122,29 @@ test('nagłówki bezpieczeństwa i CORS dla adresu frontendu', async () => {
   assert.match(res.headers.get('strict-transport-security') ?? '', /max-age=/);
   assert.match(res.headers.get('content-security-policy') ?? '', /default-src 'none'/);
   assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+});
+
+test('GET dołącza oznaczenie sprawy do weryfikacji tylko dla zakończonego sprawdzenia', async () => {
+  const escalation = {
+    caseId: 'k1',
+    reason: 'repeat_no_evidence',
+    state: 'review_recommended',
+  } as const;
+  const { app, jobs } = setup({
+    cases: { escalationFor: (id) => (id === 'c1' ? escalation : undefined) },
+  });
+  await post(app, { text: 'x' });
+  assert.equal(
+    ((await (await app.request('/api/checks/c1')).json()) as CheckJob).escalation,
+    undefined,
+  );
+
+  jobs.set('c1', {
+    checkId: 'c1',
+    state: 'done',
+    createdAt: 't',
+    updatedAt: 't',
+  });
+  const done = CheckJob.parse(await (await app.request('/api/checks/c1')).json());
+  assert.deepEqual(done.escalation, escalation);
 });

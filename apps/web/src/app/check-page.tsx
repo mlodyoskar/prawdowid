@@ -290,6 +290,7 @@ export function CheckPage() {
               <CheckResult
                 checkId={state.checkId}
                 result={state.result}
+                escalation={state.escalation}
                 onNewCheck={newCheck}
                 onRetry={lastRequest ? () => run(lastRequest) : undefined}
                 onEdit={edit}

@@ -1,7 +1,8 @@
 import type { CheckResponse, ClaimResult, ErrorCode, Evidence } from '@prawdowid/contracts';
-import { Check, Copy, RotateCcw } from 'lucide-react';
+import { Check, Copy, Download, RotateCcw } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
+import { exportFile, type ExportFormat } from '@/lib/export.ts';
 import { count, formatDateTime, plural } from '@/lib/format.ts';
 import {
   Accordion,
@@ -162,6 +163,43 @@ function OkView({ result }: { result: OkResult }) {
   );
 }
 
+const EXPORTS: ReadonlyArray<{ format: ExportFormat; label: string }> = [
+  { format: 'csv', label: 'CSV' },
+  { format: 'json', label: 'JSON' },
+  { format: 'stix', label: 'STIX 2.1 (OpenCTI)' },
+];
+
+function download(format: ExportFormat, result: OkResult) {
+  const file = exportFile(format, result, { resultUrl: window.location.href });
+  const url = URL.createObjectURL(new Blob([file.content], { type: file.mimeType }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** Web-only: the WhatsApp channel has no export. Files are built in the browser from the shown result. */
+function ExportSection({ result }: { result: OkResult }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Eyebrow>Pobierz dane</Eyebrow>
+      <p className="m-0 text-caption text-ink-muted">
+        Twierdzenia, werdykty i źródła z tego sprawdzenia: CSV do arkusza, JSON do dalszej analizy,
+        STIX 2.1 do importu w OpenCTI.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {EXPORTS.map(({ format, label }) => (
+          <Button key={format} variant="tool" size="sm" onClick={() => download(format, result)}>
+            <Download strokeWidth={ICON_STROKE} aria-hidden="true" />
+            {label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Result of a finished check. Only `ok` carries verdicts; every other status is a notice. */
 export function CheckResult({
   checkId,
@@ -243,6 +281,8 @@ export function CheckResult({
           </Button>
         ) : null}
       </div>
+
+      {result.status === 'ok' ? <ExportSection result={result} /> : null}
 
       <div className="flex flex-col gap-1">
         <Eyebrow>Zapis sprawdzenia</Eyebrow>

@@ -88,6 +88,12 @@ Korpus to plik SQLite (`data/corpus.db`) budowany od zera ze snapshotu [data/cor
 
 Jedna strona w stylu gov.pl: formularz (tekst, link albo zdjęcie), postęp i wynik pod formularzem, bez przechodzenia między widokami. Strona wysyła `POST /api/checks` i odpytuje `GET /api/checks/:checkId`; id sprawdzenia trafia do adresu (`?check=…`), więc wynik można odświeżyć i udostępnić. Adres API ustawia `VITE_API_URL` w głównym `.env` (domyślnie `http://localhost:3000`).
 
+Eksport danych (tylko WWW, kanał WhatsApp go nie ma): pod wynikiem `ok` są przyciski pobierania. Plik powstaje w przeglądarce z pokazanego wyniku ([apps/web/src/lib/export.ts](apps/web/src/lib/export.ts)), bez dodatkowego endpointu w API.
+
+- **CSV**: wiersz na parę twierdzenie–dowód (werdykt, pewność, rola dowodu, cytat, tytuł, wydawca, data, adres). UTF-8 z BOM, przecinek jako separator; wartości wyglądające jak formuły arkusza dostają apostrof.
+- **JSON**: pełny `CheckResponse` z datą eksportu i linkiem do wyniku.
+- **STIX 2.1** (`.stix.json`): paczka do importu w OpenCTI (_Data → Import_). Sprawdzenie to `report`, każde twierdzenie to `note` z werdyktem i pewnością w etykietach, a dowody są w `external_references`. Technik DISARM nie przypisujemy automatycznie: system ocenia pojedyncze twierdzenia, nie kampanie, więc tę ocenę zostawiamy analitykowi w OpenCTI.
+
 Design system jest w [apps/web/src/ui](apps/web/src/ui), a jego katalog pod adresem `/design` (z przełącznikiem motywu jasny/ciemny):
 
 - `tokens.css`: tokeny z makiet (kolory w obu motywach przez `light-dark()`), a `styles.css` mapuje je na motyw Tailwind (`bg-surface`, `text-ink-muted`, `text-title-1`…) i na nazwy shadcn/ui.

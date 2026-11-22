@@ -6,7 +6,6 @@ import {
   AppHeader,
   Button,
   describedBy,
-  Eyebrow,
   Field,
   ICON_STROKE,
   Notice,
@@ -20,7 +19,7 @@ import { SiteFooter } from './site-footer.tsx';
 import { readCheckParam, useCheck, type CheckState } from './use-check.ts';
 
 const SOURCES_LINE =
-  'komunikaty rządu i ministerstw (gov.pl) · MSZ Odyseusz · RCB · Regionalny System Ostrzegania · CERT Polska · Policja';
+  'serwisy fact-checkingowe · komunikaty rządu i ministerstw (gov.pl) · MSZ Odyseusz · RCB · Regionalny System Ostrzegania · CERT Polska · Policja';
 
 const STEPS = [
   'Wysyłamy wiadomość',
@@ -186,7 +185,7 @@ export function CheckPage() {
             />
           </Field>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="relative flex flex-wrap items-start justify-between gap-3">
             {image ? (
               <div className="flex min-w-0 items-center gap-3">
                 <img
@@ -226,7 +225,10 @@ export function CheckPage() {
                 </span>
               </div>
             )}
-            <span className="text-caption text-ink-muted" aria-live="off">
+            <span
+              className="absolute -top-5 right-0 text-caption text-ink-muted sm:-top-4"
+              aria-live="off"
+            >
               {text.length} / {MAX_TEXT_LENGTH} znaków
             </span>
             <input
@@ -337,13 +339,13 @@ export function CheckPage() {
             <li>
               <strong>Pokazujemy dowody.</strong> Każde źródło możesz otworzyć i przeczytać.
             </li>
+            <li>
+              <strong>Nie zgadujemy.</strong> Gdy dowodów jest za mało, mówimy to wprost, zamiast
+              oceniać na siłę.
+            </li>
           </ol>
-          <p className="m-0 text-body">
-            <strong>Nie zgadujemy.</strong> Gdy dowodów jest za mało, mówimy to wprost, zamiast
-            oceniać na siłę.
-          </p>
           <div className="flex flex-col gap-1">
-            <Eyebrow>Gdzie szukamy</Eyebrow>
+            <h3 className="m-0 text-caption font-semibold text-ink">Nasze źródła informacji</h3>
             <p className="m-0 text-caption text-ink-muted">{SOURCES_LINE}</p>
           </div>
         </section>

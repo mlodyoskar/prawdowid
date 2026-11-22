@@ -28,6 +28,8 @@
   --primary-strong: light-dark(#002d5c, #cfe2ff); /* Large navy areas: the result banner */
   --primary-soft: light-dark(#e5eef7, #14294a); /* Selection, quote background */
   --on-primary: light-dark(#ffffff, #0b1a2e); /* Text on primary / primary-strong */
+  --header: light-dark(#0b4ea2, #0a3d80); /* Top bar, the blue of odyseusz.gov.pl */
+  --on-header: #ffffff; /* Text on the top bar, both themes */
   /* ONLY the header rule. Never a verdict or an error. */
   --accent-red: light-dark(#d4213d, #ff6b7f);
   --focus: light-dark(#002d5c, #ffffff); /* Keyboard focus ring: 3px solid, 2px offset */

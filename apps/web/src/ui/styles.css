@@ -28,6 +28,8 @@
   --color-primary-strong: var(--primary-strong);
   --color-primary-soft: var(--primary-soft);
   --color-on-primary: var(--on-primary);
+  --color-header: var(--header);
+  --color-on-header: var(--on-header);
   --color-accent-red: var(--accent-red);
   --color-focus: var(--focus);
   --color-verdict-true: var(--verdict-true);

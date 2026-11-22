@@ -7,6 +7,9 @@ export function SiteFooter() {
           <a className="pw-link" href="/whatsapp">
             Symulator kanału WhatsApp
           </a>
+          <a className="pw-link" href="/maile">
+            Powiadomienia moderatora
+          </a>
           <a className="pw-link" href="/design">
             Design system
           </a>

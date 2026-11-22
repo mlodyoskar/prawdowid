@@ -17,14 +17,14 @@ export function AppHeader({ href = '/', children, className }: AppHeaderProps) {
         <a
           href={href}
           className="flex items-center gap-3 self-stretch text-ink no-underline"
-          aria-label="Prawdowid – sprawdzanie informacji, strona główna"
+          aria-label="Prawdowid – zobacz, co mówią źródła, strona główna"
         >
           <span className="text-[22px] leading-7 font-bold tracking-[-0.01em]">Prawdowid</span>
           <span className="my-3 w-0.5 self-stretch bg-accent-red" aria-hidden="true" />
           <span className="text-[13px] leading-4">
-            Sprawdzanie
+            Zobacz, co mówią
             <br />
-            informacji
+            źródła
           </span>
         </a>
         {children ? <div className="ml-auto flex items-center gap-4">{children}</div> : null}

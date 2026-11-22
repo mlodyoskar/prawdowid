@@ -2,12 +2,12 @@
 
 > Plik generowany przez `pnpm eval:results`. Nie edytuj ręcznie: uruchom ewaluację ponownie i wygeneruj raport. Metoda i sposób odtworzenia: [docs/evaluation.md](../../docs/evaluation.md).
 
-Wygenerowano: 2026-11-21T23:59:18.506Z
+Wygenerowano: 2026-11-22T00:06:39.051Z
 
 Przebiegi:
 
-- [2026-11-21T23-13-10.284Z-plan-dev-anthropic_claude-haiku-5.5.jsonl](../runs/2026-11-21T23-13-10.284Z-plan-dev-anthropic_claude-haiku-5.5.jsonl)
-- [2026-11-21T23-13-10.284Z-plan-held-out-anthropic_claude-haiku-5.5.jsonl](../runs/2026-11-21T23-13-10.284Z-plan-held-out-anthropic_claude-haiku-5.5.jsonl)
+- [2026-11-21T23-49-45.135Z-plan-dev-anthropic_claude-haiku-5.5.jsonl](../runs/2026-11-21T23-49-45.135Z-plan-dev-anthropic_claude-haiku-5.5.jsonl)
+- [2026-11-21T23-49-45.135Z-plan-held-out-anthropic_claude-haiku-5.5.jsonl](../runs/2026-11-21T23-49-45.135Z-plan-held-out-anthropic_claude-haiku-5.5.jsonl)
 
 ## anthropic/claude-haiku-5.5 · plan
 
@@ -16,30 +16,30 @@ Przebiegi:
 | Commit | nie zapisano (przebieg sprzed zapisu commita) |
 | Korpus | snapshot-2026-11-21-v3 |
 | Temperatura | 0 |
-| Ponowne użycie wyniku | true |
-| Powtórzenia | 3 |
-| Przypadki | 48 |
+| Ponowne użycie wyniku | false |
+| Powtórzenia | 2 |
+| Przypadki | 52 |
 
 ### Mierniki
 
 | Miara | Cel | Rozwojowe | Odłożone | Wszystkie |
 | --- | --- | --- | --- | --- |
-| Sprawdzenia bezpośrednie |  | 108 | 36 | 144 |
-| Macro-F1 (trafność werdyktu) | ≥ 0,75 | 0.687 | 0.619 | 0.673 |
-| Pokrycie cytowań (werdykt rozstrzygający ze sprawdzonym cytatem) | ≥ 95% | 72/72 (100.0%) | 24/24 (100.0%) | 96/96 (100.0%) |
-| Oczekiwane źródło wśród dowodów |  | 72/72 (100.0%) | 24/24 (100.0%) | 96/96 (100.0%) |
-| Oczekiwana fraza w cytacie z właściwego źródła |  | 66/72 (91.7%) | 18/24 (75.0%) | 84/96 (87.5%) |
-| Poprawne wstrzymanie się (scenariusz D) | ≥ 80% | 12/12 (100.0%) | 6/6 (100.0%) | 18/18 (100.0%) |
-| Odporność na prompt injection | ≥ 90% | 12/15 (80.0%) | — | 12/15 (80.0%) |
-| Awaria jako status, nie werdykt (J) | 100% | 12/12 (100.0%) | — | 12/12 (100.0%) |
-| Oczekiwany status odpowiedzi |  | 108/108 (100.0%) | 36/36 (100.0%) | 144/144 (100.0%) |
-| Maskowanie danych osobowych |  | 3/3 (100.0%) | — | 3/3 (100.0%) |
-| Spójność powtórzeń | 100% | 36/36 (100.0%) | 12/12 (100.0%) | 48/48 (100.0%) |
-| Spójność kanałów WWW i WhatsApp (G) | 100% | 12/12 (100.0%) | 6/6 (100.0%) | 18/18 (100.0%) |
-| Mediana czasu tekst/URL (s) | ≤ 30 | 10.72 | 11.67 | 10.90 |
-| Koszt USD / 100 sprawdzeń z wywołaniem modelu | raportowany | 0.215 | 0.210 | 0.214 |
-| Sprawdzenia z pomiarem tokenów |  | 47 | 14 | 61 |
-| Kopie gotowego wyniku (bez wywołania modelu) |  | 58 | 22 | 80 |
+| Sprawdzenia bezpośrednie |  | 74 | 30 | 104 |
+| Macro-F1 (trafność werdyktu) | ≥ 0,75 | 0.916 | 0.787 | 0.852 |
+| Pokrycie cytowań (werdykt rozstrzygający ze sprawdzonym cytatem) | ≥ 95% | 53/53 (100.0%) | 28/28 (100.0%) | 81/81 (100.0%) |
+| Oczekiwane źródło wśród dowodów |  | 50/50 (100.0%) | 22/22 (100.0%) | 72/72 (100.0%) |
+| Oczekiwana fraza w cytacie z właściwego źródła |  | 47/50 (94.0%) | 20/22 (90.9%) | 67/72 (93.1%) |
+| Poprawne wstrzymanie się (scenariusz D) | ≥ 80% | 8/8 (100.0%) | 3/4 (75.0%) | 11/12 (91.7%) |
+| Odporność na prompt injection | ≥ 90% | 10/10 (100.0%) | — | 10/10 (100.0%) |
+| Awaria jako status, nie werdykt (J) | 100% | 8/8 (100.0%) | — | 8/8 (100.0%) |
+| Oczekiwany status odpowiedzi |  | 74/74 (100.0%) | 30/30 (100.0%) | 104/104 (100.0%) |
+| Maskowanie danych osobowych |  | 2/2 (100.0%) | — | 2/2 (100.0%) |
+| Spójność powtórzeń | 100% | 23/37 (62.2%) | 8/15 (53.3%) | 31/52 (59.6%) |
+| Spójność kanałów WWW i WhatsApp (G) | 100% | 5/8 (62.5%) | 2/4 (50.0%) | 7/12 (58.3%) |
+| Mediana czasu tekst/URL (s) | ≤ 30 | 11.32 | 10.89 | 11.14 |
+| Koszt USD / 100 sprawdzeń z wywołaniem modelu | raportowany | 0.237 | 0.253 | 0.242 |
+| Sprawdzenia z pomiarem tokenów |  | 72 | 30 | 102 |
+| Kopie gotowego wyniku (bez wywołania modelu) |  | 0 | 0 | 0 |
 
 Poprawność cytowania (cel ≥ 85%) wymaga oceny sędziego: `evals/judge.mjs` i `evals/report.mjs`, patrz docs/evaluation.md.
 
@@ -47,21 +47,21 @@ Poprawność cytowania (cel ≥ 85%) wymaga oceny sędziego: `evals/judge.mjs` i
 
 | Werdykt | TP | FP | FN | F1 |
 | --- | --- | --- | --- | --- |
-| potwierdzone | 48 | 18 | 6 | 0.800 |
-| fałszywe | 27 | 0 | 9 | 0.857 |
-| wprowadzające w błąd | 0 | 3 | 6 | 0.000 |
-| brak wystarczających dowodów | 18 | 15 | 0 | 0.706 |
-| nie podlega weryfikacji | 9 | 0 | 0 | 1.000 |
+| potwierdzone | 37 | 6 | 1 | 0.914 |
+| fałszywe | 21 | 4 | 3 | 0.857 |
+| wprowadzające w błąd | 7 | 6 | 3 | 0.609 |
+| brak wystarczających dowodów | 11 | 2 | 1 | 0.880 |
+| nie podlega weryfikacji | 6 | 0 | 0 | 1.000 |
 
 ### Według scenariusza (wszystkie przypadki)
 
 | Scenariusz | Przypadki | Macro-F1 |
 | --- | --- | --- |
-| A | 13 | 0.641 |
-| B | 5 | 0.500 |
-| D | 9 | 1.000 |
-| E | 5 | 0.444 |
-| F | 3 | 0.333 |
-| I | 3 | 0.200 |
+| A | 14 | 1.000 |
+| B | 8 | 0.886 |
+| D | 9 | 0.652 |
+| E | 5 | 1.000 |
+| F | 3 | 0.556 |
+| I | 3 | 0.190 |
 | J | 4 | — |
-| X | 6 | 0.222 |
+| X | 6 | 0.508 |

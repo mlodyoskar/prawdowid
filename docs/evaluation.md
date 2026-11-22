@@ -29,14 +29,16 @@ pnpm eval:results <plik-rozwojowy.jsonl> <plik-odłożony.jsonl>
 - `--only A,E` wybiera scenariusze (E dołącza czyste przypadki kontrolne). `--mode agent` mierzy pętlę narzędziową. `--no-reuse` wyłącza ponowne użycie wyniku, `--temperature none` wyłącza temperaturę 0.
 - Ponowne wywołanie modelu może dać inne wyniki niż zapisany przebieg.
 
-**Poprawność cytowania** (cel ≥ 85%) wymaga niezależnego sędziego LLM, więc nie wchodzi do raportu automatycznego:
+**Poprawność cytowania** (cel ≥ 85%) wymaga niezależnego sędziego, więc nie wchodzi do raportu automatycznego. Sędzią jest sesja Claude Code według [rubryki](../.claude/skills/judge-evals/rubric.md):
 
 ```sh
-node --env-file=.env evals/judge.mjs <pliki przebiegu>
-node evals/report.mjs evals/runs/judge-<model>.jsonl <pliki przebiegu>
+node evals/judge.mjs export <pliki przebiegu>   # potem w Claude Code: /judge-evals
+node evals/report.mjs <pliki przebiegu>
 ```
 
-`report.mjs` zapisuje też [kolejkę recenzji](../evals/runs/review.jsonl): wszystkie oznaczone odpowiedzi i jedną piątą pozostałych, wybraną powtarzalnie według skrótu treści. Sędzia widzi tylko tezę, role, cytaty i wyjaśnienie, nie pełny dokument; jego wynik wymaga potwierdzenia przez człowieka.
+- Umiejętność [`judge-evals`](../.claude/skills/judge-evals/SKILL.md) dzieli tezy na partie i zleca ich ocenę subagentom ze świeżym kontekstem, bez dostępu do etykiet. Oceny trafiają do [judge-claude-code.jsonl](../evals/runs/judge-claude-code.jsonl), każda z uzasadnieniem.
+- Sędzia widzi pytanie użytkownika, tezę, werdykt, wyjaśnienie, cytaty z rolami i **pełny tekst** każdego cytowanego dokumentu. Ocenia, czy teza oddaje pytanie, czy każdy cytat pełni swoją rolę, czy werdykt wynika z materiału, jaki werdykt sam by wydał, czy wyjaśnienie dodaje niepodparte fakty i czy przy wstrzymaniu się wskazano dokument rozstrzygający.
+- Sędzia i oceniany system to modele Anthropic, więc możliwa jest wspólna stronniczość. Wynik poprawności cytatów trzeba potwierdzić na próbce ocenionej przez człowieka. `report.mjs` zapisuje [kolejkę recenzji](../evals/runs/review.jsonl): wszystkie oznaczone odpowiedzi i jedną piątą pozostałych, wybraną powtarzalnie według skrótu treści.
 
 ## Jak czytać liczby
 
@@ -50,10 +52,11 @@ node evals/report.mjs evals/runs/judge-<model>.jsonl <pliki przebiegu>
 
 ## Znane słabości
 
-Wnioski z analizy wywołań w PR #7 i #9. Ślady i oceny do sprawdzenia są w [evals/diagnostics](../evals/diagnostics/).
+Wnioski z analizy wywołań w PR #7, #9 i #11. Ślady i oceny do sprawdzenia są w [evals/diagnostics](../evals/diagnostics/).
 
-- **Mylący kontekst (B, F).** Planer znajduje stary alert, ale gdy zgłoszenie przedstawia go jako aktualny, bada, czy doszło do nowego zdarzenia, i wstrzymuje się zamiast ocenić „wprowadzające w błąd”. Wydzielanie tezy powinno zachować informację, że użytkownik przedstawia konkretny materiał jako bieżący. To główna przyczyna niskiego F1 tej klasy.
-- **Tożsamość dokumentu (I).** Pytanie „czy ten adres to ten sam materiał” bywa zamieniane na kilka tez o treści strony, co gubi pytanie i dokłada fałszywie dodatnie tezy.
+- **Granica „fałszywe” / „wprowadzające w błąd” (B, F).** Od PR #11 sędzia widzi całą wiadomość użytkownika i ma definicje werdyktów oparte na rdzeniu wiadomości, więc stary materiał podany jako dzisiejszy nie kończy się już wstrzymaniem. Przy takim materiale (B3, F3, B7) werdykt wciąż przeskakuje między „fałszywe” a „wprowadzające w błąd”.
+- **Tożsamość dokumentu (I).** Pytanie „czy ten adres to ten sam materiał” bywa zamieniane na kilka tez o treści strony, co gubi pytanie i dokłada fałszywie dodatnie tezy. To najsłabszy scenariusz.
+- **Liczby nieostre (D5).** „Ponad 30 urządzeń” bywa brane za obalenie „63 laptopów”, choć nie podaje górnej granicy.
 - **Dobór dowodów.** Zapytania korpusowe potrafią zająć prawie cały limit dowodów i wypchnąć trafny fact-check. Izolowany eksperyment na jednej tezie ([A13](../evals/diagnostics/A13-selection.jsonl)) pokazał, że naprzemienne wypełnianie limitu z kolejnych list trafień naprawia werdykt.
 - **Cytaty kontekstowe.** Duża część cytatów z rolą „kontekst” dotyczy innych spraw; moja ręczna ocena wszystkich użyć cytatów jest w [codex-citations.jsonl](../evals/diagnostics/codex-citations.jsonl) i [google-priority-citations.jsonl](../evals/diagnostics/google-priority-citations.jsonl).
 - **Niedeterminizm planu zapytań.** Model formułuje zapytania za każdym razem trochę inaczej, także przy temperaturze 0, więc sędzia dostaje inny materiał. Spójność zapewnia ponowne użycie wyniku, nie determinizm modelu; parafraza to nowe zgłoszenie i może dostać inny wynik ([ślady](../evals/diagnostics/consistency-baseline-trace.jsonl)).

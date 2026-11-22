@@ -314,6 +314,8 @@ export async function verifyPlanned(
             claim.text,
             evidence,
             [...claim.failures].map(([label, message]) => `${label} (${message})`),
+            // Sędzia ocenia twierdzenie w znaczeniu, jakie nadaje mu wiadomość (po maskowaniu danych).
+            { text: masked.text, hasImage: Boolean(input.image) },
           ),
         },
       ],

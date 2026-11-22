@@ -157,6 +157,20 @@ test('werdykt z cytatem: rola dowodu, siła podstawy z kodu i etapy', async () =
   assert.equal(metrics.toolCalls.search_corpus, 1);
 });
 
+test('sędzia dostaje wiadomość użytkownika po maskowaniu, a nie tylko twierdzenie', async () => {
+  const { model, calls } = stagedModel({ extract: extraction([{}]), judge: refutes() });
+  const { deps: d } = deps(model);
+  await verifyPlanned(
+    { text: 'Udostępniam jako dzisiejsze: wraca pobór. Pisz na 601 234 567.' },
+    d,
+    { checkId: 'x' },
+  );
+  const judge = calls.find((c) => c.stage === 'judge');
+  assert.ok(judge?.prompt.includes('Udostępniam jako dzisiejsze'));
+  assert.ok(judge?.prompt.includes('Od grudnia wraca obowiązkowy pobór'));
+  assert.ok(!judge?.prompt.includes('601 234 567'));
+});
+
 test('zmyślony cytat: werdykt wstrzymany, uzasadnienie sędziego odrzucone', async () => {
   const { model } = stagedModel({
     extract: extraction([{}]),

@@ -72,7 +72,7 @@ Ten sam zestaw testowy na obu trybach. Porównujemy: macro-F1 werdyktów, odsete
 
 Sędzia dostaje jedno twierdzenie i listę dowodów. Dla każdego dowodu zwraca:
 
-- **relację** do twierdzenia: `direct` (dotyczy wprost tego twierdzenia; dla fact-checka: sprawdzał to samo twierdzenie), `related` (ten sam temat) albo `unrelated`,
+- **relację** do twierdzenia: `direct` (ta sama sprawa: to samo zdarzenie, dokument, decyzja albo osoba, nawet gdy twierdzenie podaje inną datę, miejsce czy liczbę; dla fact-checka: sprawdzał to samo twierdzenie), `related` (ten sam temat) albo `unrelated`,
 - **rolę**: `supports`, `refutes` albo `context`,
 - **cytat**: dosłowny fragment materiału,
 - flagę, że materiał zawiera polecenia skierowane do systemu.

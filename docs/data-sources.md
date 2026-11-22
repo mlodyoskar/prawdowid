@@ -37,7 +37,11 @@ Bazą incydentów jest EUvsDisinfo, a nie plik JSON/CSV. Integracja jest **opcjo
 - [Instrukcja masowego pobrania artykułów i przypadków (PDF)](https://euvsdisinfo.eu/public-docs/How_to_grab_all_Articles_and_Cases_from_disinfo.pdf)
 - Dokumentacja MCP / API i instrukcja podłączenia narzędzi AI do serwera MCP: udostępniana przez EUvsDisinfo razem z tokenem (link prywatny, nie trzymamy go w repo).
 
-Licencja, schemat i rozmiar danych EUvsDisinfo nie są znane. Trzeba je opisać w dokumentacji źródeł do oddania.
+**Stan (2026-11-22):** podłączone na żywo przez narzędzie MCP `search` ([packages/sources/src/euvsdisinfo.ts](../packages/sources/src/euvsdisinfo.ts), dopasowanie w [packages/agent/src/incidents.ts](../packages/agent/src/incidents.ts), wpis w `INCIDENT_SOURCES` w [data/sources.ts](../data/sources.ts)). Działa, gdy ustawiony jest `EUVSDISINFO_API_KEY`.
+
+- Do serwera wysyłamy tylko wydzielone twierdzenia po maskowaniu danych osobowych, nigdy treść zgłoszenia. Serwer loguje zapytania (Supabase), miejsce przetwarzania jest nieznane.
+- Dopasowanie (`incidents` w wyniku) to kontekst: nie trafia do dowodów, nie zmienia werdyktu, siły podstawy ani ostrzeżeń. Stan katalogu jest w osobnym polu `incidentCatalog`.
+- Licencja: na euvsdisinfo.eu brak; nota prawna ESDZ pozwala na ponowne wykorzystanie z podaniem źródła. Szczegóły, schemat, rozmiar i otwarte pytania: [docs/research/euvsdisinfo.md](research/euvsdisinfo.md).
 
 ## 4. Czego organizator nie udostępnił
 

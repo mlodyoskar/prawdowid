@@ -161,6 +161,16 @@ export function formatReply(
       )}`,
     );
   }
+  if (response.incidents && response.incidents.length > 0) {
+    // Kontekst, nie dowód: osobno od werdyktu i źródeł, z zastrzeżeniem, że nie zmienia oceny.
+    const shown = response.incidents.slice(0, 2);
+    tail.push(
+      [
+        'Kontekst (nie wpływa na ocenę): podobne twierdzenie opisuje katalog EUvsDisinfo. To nie dowód w tej sprawie.',
+        ...shown.map((m) => `• ${truncate(m.title, 160)}\n${m.url}`),
+      ].join('\n'),
+    );
+  }
   if (escalation) tail.push(ESCALATION_MESSAGE[escalation.reason]);
   if (response.warnings.length > 0) {
     tail.push(`Zwróć uwagę:\n${response.warnings.map((w) => `• ${truncate(w, 300)}`).join('\n')}`);

@@ -63,6 +63,11 @@ const Env = z.object({
    */
   REQUIRE_LLM: boolFlag(false),
   GOOGLE_FACTCHECK_API_KEY: optionalString,
+  /** Token do serwera MCP EUvsDisinfo. Brak = dopasowanie do znanych incydentów jest wyłączone. */
+  EUVSDISINFO_API_KEY: z.preprocess(
+    (v) => (typeof v === 'string' ? v.replace(/^"|"$/g, '') : v),
+    optionalString,
+  ),
   CORPUS_DB_PATH: z.preprocess(emptyToUndefined, z.string().default('data/corpus.db')),
   CHECKS_DB_PATH: z.preprocess(emptyToUndefined, z.string().default('data/checks.db')),
   MAX_CONCURRENT_CHECKS: int(4),

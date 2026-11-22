@@ -10,8 +10,8 @@
 @import './tokens.css';
 
 /*
- * Tokens → Tailwind. `inline` makes utilities point at the variables, so switching themes
- * needs no `dark:` variants: bg-surface, text-ink-muted, border-line-strong, text-verdict-false…
+ * Tokens → Tailwind. `inline` makes utilities point at the variables:
+ * bg-surface, text-ink-muted, border-line-strong, text-verdict-false…
  * The second group maps shadcn/ui's semantic names onto the same tokens.
  */
 @theme inline {

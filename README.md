@@ -142,7 +142,7 @@ Korpus to plik SQLite (`data/corpus.db`) budowany od zera ze snapshotu [data/cor
 
 ### Frontend
 
-Jedna strona w stylu gov.pl: formularz (tekst, link albo zdjęcie), postęp i wynik pod formularzem, bez przechodzenia między widokami. Strona wysyła `POST /api/checks` i odpytuje `GET /api/checks/:checkId`; id sprawdzenia trafia do adresu (`?check=…`), więc wynik można odświeżyć i udostępnić. Adres API ustawia `VITE_API_URL` w głównym `.env` (domyślnie `http://localhost:3000`).
+Jedna strona w stylu gov.pl: formularz (tekst, link albo zdjęcie), postęp i wynik pod formularzem, bez przechodzenia między widokami. Strona wysyła `POST /api/checks` i odpytuje `GET /api/checks/:checkId`; krótki losowy id sprawdzenia trafia do adresu (`/w/<id>`), więc wynik można odświeżyć i udostępnić. Adres API ustawia `VITE_API_URL` w głównym `.env` (domyślnie `http://localhost:3000`).
 
 Eksport danych (tylko WWW, kanał WhatsApp go nie ma): pod wynikiem `ok` są przyciski pobierania. Plik powstaje w przeglądarce z pokazanego wyniku ([apps/web/src/lib/export.ts](apps/web/src/lib/export.ts)), bez dodatkowego endpointu w API.
 
@@ -150,9 +150,9 @@ Eksport danych (tylko WWW, kanał WhatsApp go nie ma): pod wynikiem `ok` są prz
 - **JSON**: pełny `CheckResponse` z datą eksportu i linkiem do wyniku.
 - **STIX 2.1** (`.stix.json`): paczka do importu w OpenCTI (_Data → Import_). Sprawdzenie to `report`, każde twierdzenie to `note` z werdyktem i pewnością w etykietach, a dowody są w `external_references`. Technik DISARM nie przypisujemy automatycznie: system ocenia pojedyncze twierdzenia, nie kampanie, więc tę ocenę zostawiamy analitykowi w OpenCTI.
 
-Design system jest w [apps/web/src/ui](apps/web/src/ui), a jego katalog pod adresem `/design` (z przełącznikiem motywu jasny/ciemny):
+Design system jest w [apps/web/src/ui](apps/web/src/ui), a jego katalog pod adresem `/design`:
 
-- `tokens.css`: tokeny z makiet (kolory w obu motywach przez `light-dark()`), a `styles.css` mapuje je na motyw Tailwind (`bg-surface`, `text-ink-muted`, `text-title-1`…) i na nazwy shadcn/ui.
+- `tokens.css`: tokeny z makiet (tylko motyw jasny), a `styles.css` mapuje je na motyw Tailwind (`bg-surface`, `text-ink-muted`, `text-title-1`…) i na nazwy shadcn/ui.
 - `base/`: komponenty shadcn/ui (Button, Textarea, Label, Badge, Alert, Separator, Accordion) przestylowane pod gov.pl. Nowe dodaje `pnpm dlx shadcn@latest add <nazwa>` w `apps/web`.
 - Obok: komponenty Prawdowid, np. `VerdictBadge`, `ClaimCard`, `SourceCard`, `StrengthMeter`, `Notice`, `Steps`, `SummaryBanner`, `AppHeader`.
 
@@ -160,7 +160,7 @@ Zasady z makiet: werdykt zawsze ma ikonę i słowo; komunikat systemowy (awaria,
 
 ### Kanał WhatsApp
 
-Drugi kanał działa przez oficjalne WhatsApp Cloud API od Meta. Kod jest w [apps/api/src/whatsapp](apps/api/src/whatsapp) i jest tylko adapterem: wiadomość trafia do tej samej kolejki co zgłoszenie z WWW (`JobRunner` → `runVerification()`). To samo zgłoszenie z obu kanałów dostaje jeden wynik (patrz [Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)), więc werdykt i dowody są te same. Odpowiedź zaczyna się od werdyktu, podaje z cytatem każdą publikację, na której opiera się werdykt (te same co WWW, kontekst zostaje w pełnym wyniku), i kończy linkiem `WEB_ORIGIN/?check=<id>`, który otwiera ten sam zapisany wynik na stronie.
+Drugi kanał działa przez oficjalne WhatsApp Cloud API od Meta. Kod jest w [apps/api/src/whatsapp](apps/api/src/whatsapp) i jest tylko adapterem: wiadomość trafia do tej samej kolejki co zgłoszenie z WWW (`JobRunner` → `runVerification()`). To samo zgłoszenie z obu kanałów dostaje jeden wynik (patrz [Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)), więc werdykt i dowody są te same. Odpowiedź zaczyna się od werdyktu, podaje z cytatem każdą publikację, na której opiera się werdykt (te same co WWW, kontekst zostaje w pełnym wyniku), i kończy linkiem `WEB_ORIGIN/w/<id>`, który otwiera ten sam zapisany wynik na stronie.
 
 - Obsługiwane: tekst, link, zdjęcie (z podpisem lub bez). `POMOC` pokazuje instrukcję, `USUŃ` kasuje sprawdzenia wysłane z tego numeru.
 - Adapter demonstracyjny: strona `/whatsapp` i trasy `POST/GET/DELETE /api/demo/whatsapp/messages` ([demo.ts](apps/api/src/whatsapp/demo.ts)). Wiadomość z przeglądarki staje się payloadem w kształcie Meta i idzie przez to samo `handlePayload()` co webhook; zamiast `GraphClient` odpowiedź trafia do pamięciowej skrzynki odbieranej odpytywaniem. Numer telefonu zastępuje losowy identyfikator przeglądarki. Działa bez zmiennych `WHATSAPP_*`, wyłącza go `DEMO_CHANNEL=false`.

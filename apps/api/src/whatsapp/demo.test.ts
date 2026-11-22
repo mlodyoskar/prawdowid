@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { test } from 'node:test';
 
-import type { CheckJob, CheckRequest, CheckResponse } from '@prawdowid/contracts';
+import {
+  resultUrl,
+  type CheckJob,
+  type CheckRequest,
+  type CheckResponse,
+} from '@prawdowid/contracts';
 
 import { createApp } from '../app.ts';
 import { DemoTransport, demoRoutes, type DemoOutboundMessage } from './demo.ts';
@@ -190,7 +195,7 @@ test('symulator i webhook Meta: to samo zgłoszenie i ten sam wynik → identycz
   assert.equal(after.messages.length, 1);
   assert.equal(after.messages[0]!.text, ctx.sent[0]!.body);
   assert.ok(after.messages[0]!.text.startsWith('❌ FAŁSZYWE'));
-  assert.ok(after.messages[0]!.text.endsWith('https://prawdowid.example/?check=c1'));
+  assert.ok(after.messages[0]!.text.endsWith(resultUrl('https://prawdowid.example', 'c1')));
 });
 
 test('polecenia POMOC i USUŃ działają jak w WhatsApp', async () => {

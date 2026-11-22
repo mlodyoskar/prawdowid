@@ -203,7 +203,7 @@ test('wynik sprawdzenia wraca do nadawcy z werdyktem, źródłem i linkiem do WW
   assert.equal(reply.to, PHONE);
   assert.ok(reply.body.startsWith('❌ FAŁSZYWE'));
   assert.ok(reply.body.includes('https://www.gov.pl/web/obrona-narodowa/x'));
-  assert.ok(reply.body.endsWith('https://prawdowid.example/?check=c1'));
+  assert.ok(reply.body.endsWith('https://prawdowid.example/w/c1'));
 });
 
 test('zdjęcie z podpisem → enqueue({ image, text })', async () => {

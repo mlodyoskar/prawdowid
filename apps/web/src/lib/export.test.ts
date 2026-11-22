@@ -91,12 +91,12 @@ test('JSON keeps the full result and export metadata', () => {
   const doc = JSON.parse(
     toJson(RESULT, {
       now: new Date('2026-11-22T12:00:00Z'),
-      resultUrl: 'https://w.test/?check=chk-1',
+      resultUrl: 'https://w.test/w/chk-1',
     }),
   );
   assert.equal(doc.format, 'prawdowid-check');
   assert.equal(doc.exportedAt, '2026-11-22T12:00:00.000Z');
-  assert.equal(doc.resultUrl, 'https://w.test/?check=chk-1');
+  assert.equal(doc.resultUrl, 'https://w.test/w/chk-1');
   assert.deepEqual(CheckResponse.parse(doc.result), RESULT);
 });
 

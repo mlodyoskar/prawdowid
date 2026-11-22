@@ -1,4 +1,10 @@
-import type { CaseEscalation, CheckRequest, CheckResponse } from '@prawdowid/contracts';
+import {
+  checkIdFromLocation,
+  resultUrl,
+  type CaseEscalation,
+  type CheckRequest,
+  type CheckResponse,
+} from '@prawdowid/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, createCheck, deleteCheck, getCheck } from './api.ts';
@@ -25,7 +31,8 @@ export type CheckState =
 
 /** The server stops a check after ~30 s; past this we stop waiting for it on our side. */
 const CLIENT_TIMEOUT_MS = 90_000;
-const CHECK_PARAM = 'check';
+/** Links from before /w/<id> (still readable, see checkIdFromLocation). */
+const LEGACY_CHECK_PARAM = 'check';
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
@@ -41,15 +48,17 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** The check id lives in the URL (?check=…) so a result can be reloaded and shared. */
+/** The check id lives in the URL (/w/<id>) so a result can be reloaded and shared. */
 export function readCheckParam(): string | null {
-  return new URLSearchParams(window.location.search).get(CHECK_PARAM);
+  return checkIdFromLocation(window.location.pathname, window.location.search);
 }
 
+/** Shows /w/<id> for a check and / otherwise. Drops the older ?check= and any #anchor. */
 function writeCheckParam(checkId: string | null) {
   const url = new URL(window.location.href);
-  if (checkId) url.searchParams.set(CHECK_PARAM, checkId);
-  else url.searchParams.delete(CHECK_PARAM);
+  url.pathname = checkId ? new URL(resultUrl(url.origin, checkId)).pathname : '/';
+  url.searchParams.delete(LEGACY_CHECK_PARAM);
+  url.hash = '';
   window.history.replaceState(null, '', url);
 }
 

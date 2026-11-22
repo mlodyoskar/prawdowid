@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
 import { emptyMetrics, maskPii, type VerifyMetrics, type VerifyResult } from '@prawdowid/agent';
@@ -9,6 +8,7 @@ import {
   type JobState,
 } from '@prawdowid/contracts';
 
+import { newCheckId } from './check-id.ts';
 import { reuseResponse } from './reuse.ts';
 
 /**
@@ -262,7 +262,8 @@ export class JobRunner {
     if (!this.#accepting) return null;
     const { store, now, reuse } = this.#opts;
     const key = reuse?.key(input) ?? null;
-    const id = randomUUID();
+    let id = newCheckId();
+    while (store.get(id)) id = newCheckId();
 
     if (key && reuse) {
       const createdAt = now();

@@ -13,7 +13,7 @@ export type ExportFormat = 'csv' | 'json' | 'stix';
 export type ExportFile = { filename: string; mimeType: string; content: string };
 
 export type ExportOptions = {
-  /** Adres wyniku na stronie (`?check=…`), dopisywany jako odnośnik do źródła eksportu. */
+  /** Adres wyniku na stronie (`/w/<id>`), dopisywany jako odnośnik do źródła eksportu. */
   resultUrl?: string;
   now?: Date;
   /** Generator UUID dla identyfikatorów STIX (w testach deterministyczny). */

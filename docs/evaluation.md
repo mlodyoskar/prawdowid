@@ -12,7 +12,7 @@ Przypadki z etykietami są w [evals/cases.jsonl](../evals/cases.jsonl): część
 
 Przykłady z [docs/challenge/zadania.md](challenge/zadania.md) nie trafiają do promptu ani korpusu.
 
-**Strojenie na przypadkach odłożonych.** Poprawka promptu z 22.11 (zasady o skrócie, o przedstawianiu starego zdarzenia jako bieżącego i o porównywaniu liczb, które liczą to samo) powstała po analizie błędów w przypadkach B7 i D5 z części odłożonej oraz E4 i A14. Zasady są ogólne i nie zawierają treści tych przypadków, ale B7 i D5 nie są już niezależną próbą: wynik części odłożonej po tej zmianie jest zawyżony o ich wpływ.
+**Strojenie na przypadkach odłożonych.** Poprawka promptu z 22.11 (zasady o przedstawianiu starego zdarzenia jako bieżącego i o porównywaniu liczb, które liczą to samo, oraz opinia jako werdykt, a nie wyjście poza zakres) powstała po analizie błędów w przypadkach B7 i D5 z części odłożonej oraz E4, A14 i D8. Zasady są ogólne i nie zawierają treści tych przypadków, ale B7 i D5 nie są już niezależną próbą: wynik części odłożonej po tej zmianie jest zawyżony o ich wpływ.
 
 ## Odtworzenie
 

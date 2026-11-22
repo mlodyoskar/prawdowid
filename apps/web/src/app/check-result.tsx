@@ -1,5 +1,6 @@
 import {
   ESCALATION_MESSAGE,
+  resultUrl,
   type CaseEscalation,
   type CheckResponse,
   type ClaimResult,
@@ -183,8 +184,10 @@ const EXPORTS: ReadonlyArray<{ format: ExportFormat; label: string }> = [
   { format: 'stix', label: 'STIX 2.1 (OpenCTI)' },
 ];
 
-function download(format: ExportFormat, result: OkResult) {
-  const file = exportFile(format, result, { resultUrl: window.location.href });
+function download(format: ExportFormat, result: OkResult, checkId: string) {
+  const file = exportFile(format, result, {
+    resultUrl: resultUrl(window.location.origin, checkId),
+  });
   const url = URL.createObjectURL(new Blob([file.content], { type: file.mimeType }));
   const link = document.createElement('a');
   link.href = url;
@@ -194,7 +197,7 @@ function download(format: ExportFormat, result: OkResult) {
 }
 
 /** Web-only: the WhatsApp channel has no export. Files are built in the browser from the shown result. */
-function ExportSection({ result }: { result: OkResult }) {
+function ExportSection({ result, checkId }: { result: OkResult; checkId: string }) {
   return (
     <div className="flex flex-col gap-2">
       <Eyebrow>Pobierz dane</Eyebrow>
@@ -204,7 +207,12 @@ function ExportSection({ result }: { result: OkResult }) {
       </p>
       <div className="flex flex-wrap gap-2">
         {EXPORTS.map(({ format, label }) => (
-          <Button key={format} variant="tool" size="sm" onClick={() => download(format, result)}>
+          <Button
+            key={format}
+            variant="tool"
+            size="sm"
+            onClick={() => download(format, result, checkId)}
+          >
             <Download strokeWidth={ICON_STROKE} aria-hidden="true" />
             {label}
           </Button>
@@ -229,7 +237,8 @@ export function CheckResult({
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      // Built from the id, not the address bar, which may carry an #anchor.
+      await navigator.clipboard.writeText(resultUrl(window.location.origin, checkId));
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
@@ -297,7 +306,7 @@ export function CheckResult({
         ) : null}
       </div>
 
-      {result.status === 'ok' ? <ExportSection result={result} /> : null}
+      {result.status === 'ok' ? <ExportSection result={result} checkId={checkId} /> : null}
 
       <div className="flex flex-col gap-1">
         <Eyebrow>Zapis sprawdzenia</Eyebrow>

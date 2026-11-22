@@ -57,7 +57,7 @@ export function CheckPage() {
 
   const announcement = busy ? `${STEPS[currentStep(state)]}…` : confirmation;
 
-  // A shared link (?check=…) opens that check's result.
+  // A shared link (/w/<id>) opens that check's result.
   useEffect(() => {
     const checkId = readCheckParam();
     if (checkId) void open(checkId);

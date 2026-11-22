@@ -1,5 +1,6 @@
 import {
   ESCALATION_MESSAGE,
+  resultUrl,
   type CaseEscalation,
   type CheckResponse,
   type ClaimResult,
@@ -52,10 +53,6 @@ function isWebUrl(url: string): boolean {
   } catch {
     return false;
   }
-}
-
-export function resultUrl(webOrigin: string, checkId: string): string {
-  return `${webOrigin.replace(/\/+$/, '')}/?check=${encodeURIComponent(checkId)}`;
 }
 
 function truncate(text: string, max: number): string {

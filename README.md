@@ -104,9 +104,9 @@ Eksport danych (tylko WWW, kanał WhatsApp go nie ma): pod wynikiem `ok` są prz
 - **JSON**: pełny `CheckResponse` z datą eksportu i linkiem do wyniku.
 - **STIX 2.1** (`.stix.json`): paczka do importu w OpenCTI (_Data → Import_). Sprawdzenie to `report`, każde twierdzenie to `note` z werdyktem i pewnością w etykietach, a dowody są w `external_references`. Technik DISARM nie przypisujemy automatycznie: system ocenia pojedyncze twierdzenia, nie kampanie, więc tę ocenę zostawiamy analitykowi w OpenCTI.
 
-Design system jest w [apps/web/src/ui](apps/web/src/ui), a jego katalog pod adresem `/design` (z przełącznikiem motywu jasny/ciemny):
+Design system jest w [apps/web/src/ui](apps/web/src/ui), a jego katalog pod adresem `/design`:
 
-- `tokens.css`: tokeny z makiet (kolory w obu motywach przez `light-dark()`), a `styles.css` mapuje je na motyw Tailwind (`bg-surface`, `text-ink-muted`, `text-title-1`…) i na nazwy shadcn/ui.
+- `tokens.css`: tokeny z makiet (tylko motyw jasny), a `styles.css` mapuje je na motyw Tailwind (`bg-surface`, `text-ink-muted`, `text-title-1`…) i na nazwy shadcn/ui.
 - `base/`: komponenty shadcn/ui (Button, Textarea, Label, Badge, Alert, Separator, Accordion) przestylowane pod gov.pl. Nowe dodaje `pnpm dlx shadcn@latest add <nazwa>` w `apps/web`.
 - Obok: komponenty Prawdowid, np. `VerdictBadge`, `ClaimCard`, `SourceCard`, `StrengthMeter`, `Notice`, `Steps`, `SummaryBanner`, `AppHeader`.
 

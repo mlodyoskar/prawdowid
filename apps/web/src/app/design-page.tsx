@@ -1,6 +1,6 @@
 import type { Evidence } from '@prawdowid/contracts';
-import { ArrowRight, Monitor, Moon, Sun } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { ArrowRight } from 'lucide-react';
+import { type ReactNode } from 'react';
 
 import {
   Accordion,
@@ -26,8 +26,6 @@ import {
 
 import { EvidenceSource } from './evidence-source.tsx';
 import { SiteFooter } from './site-footer.tsx';
-
-type Theme = 'system' | 'light' | 'dark';
 
 const COLOR_GROUPS: { title: string; tokens: string[] }[] = [
   { title: 'Powierzchnie', tokens: ['surface', 'surface-alt', 'surface-raised'] },
@@ -155,44 +153,6 @@ function Specimen({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function ThemeSwitch() {
-  const [theme, setTheme] = useState<Theme>('system');
-
-  useEffect(() => {
-    const html = document.documentElement;
-    if (theme === 'system') delete html.dataset['theme'];
-    else html.dataset['theme'] = theme;
-    return () => {
-      delete html.dataset['theme'];
-    };
-  }, [theme]);
-
-  const options: { value: Theme; label: string; Icon: typeof Sun }[] = [
-    { value: 'system', label: 'System', Icon: Monitor },
-    { value: 'light', label: 'Jasny', Icon: Sun },
-    { value: 'dark', label: 'Ciemny', Icon: Moon },
-  ];
-
-  return (
-    <fieldset className="m-0 mt-2 flex flex-wrap gap-1 border-0 p-0">
-      <legend className="sr-only">Motyw</legend>
-      {options.map(({ value, label, Icon }) => (
-        <Button
-          key={value}
-          size="sm"
-          variant={theme === value ? 'secondary' : 'text'}
-          aria-pressed={theme === value}
-          onClick={() => setTheme(value)}
-          className="no-underline"
-        >
-          <Icon strokeWidth={ICON_STROKE} aria-hidden="true" />
-          {label}
-        </Button>
-      ))}
-    </fieldset>
-  );
-}
-
 /** Living catalog of tokens and components. Reach it at /design. */
 export function DesignPage() {
   return (
@@ -205,10 +165,8 @@ export function DesignPage() {
           <h1 className="m-0 text-display">Design system</h1>
           <p className="m-0 max-w-2xl text-body-lg text-ink-muted">
             Tokeny i komponenty interfejsu. Kod jest w <code>apps/web/src/ui</code>: prymitywy
-            shadcn/ui w <code>base/</code>, komponenty Prawdowid obok. Kolory przełączają się między
-            motywem jasnym i ciemnym bez osobnych klas.
+            shadcn/ui w <code>base/</code>, komponenty Prawdowid obok.
           </p>
-          <ThemeSwitch />
         </div>
 
         <Section

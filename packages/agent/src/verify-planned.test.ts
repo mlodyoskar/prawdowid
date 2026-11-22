@@ -157,6 +157,41 @@ test('werdykt z cytatem: rola dowodu, siła podstawy z kodu i etapy', async () =
   assert.equal(metrics.toolCalls.search_corpus, 1);
 });
 
+test('materiał archiwalny: ostrzeżenie tylko dla cytowanego dowodu, nie dla innych materiałów', async () => {
+  const old = (title: string, url: string) => ({
+    ...corpusHit.items[0]!,
+    title,
+    url,
+    publishedAt: '2021-06-21',
+  });
+  const corpus: SourceResult = {
+    ok: true,
+    items: [
+      { ...corpusHit.items[0]!, publishedAt: '2021-06-21' },
+      old('Pobór w innych państwach', 'https://www.gov.pl/web/obrona-narodowa/inne'),
+    ],
+  };
+  const judge = {
+    ...refutes(),
+    items: [
+      ...refutes().items,
+      { id: 'doc_2', relation: 'related', stance: 'context', quote: '', addressesModel: false },
+    ],
+  };
+  const { model } = stagedModel({ extract: extraction([{}]), judge });
+  const { deps: d } = deps(model, { corpus: () => corpus });
+  const { response } = await verifyPlanned({ text: 'Czy od grudnia wraca pobór?' }, d, {
+    checkId: 'x',
+  });
+
+  assert.equal(response.status, 'ok');
+  if (response.status !== 'ok') return;
+  assert.deepEqual(response.claims[0]?.relatedIds, ['doc_2']);
+  const archival = response.warnings.filter((w) => w.startsWith('Materiał archiwalny'));
+  assert.equal(archival.length, 1);
+  assert.ok(archival[0]?.includes('MON dementuje'));
+});
+
 test('sędzia dostaje wiadomość użytkownika po maskowaniu, a nie tylko twierdzenie', async () => {
   const { model, calls } = stagedModel({ extract: extraction([{}]), judge: refutes() });
   const { deps: d } = deps(model);

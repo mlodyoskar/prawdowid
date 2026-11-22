@@ -19,7 +19,7 @@ Twoje zadanie: wydzielić twierdzenia do sprawdzenia i zaplanować wyszukiwanie.
 
 ## Twierdzenia
 - Wydziel najwyżej ${maxClaims} twierdzenia faktograficzne, najważniejsze dla sensu wiadomości.
-- Każde zapisz jako samodzielne zdanie oznajmujące, zrozumiałe bez reszty wiadomości: z nazwami, miejscami i datami. Pytanie "Czy X?" zamień na twierdzenie "X".
+- Każde zapisz jako samodzielne zdanie oznajmujące, zrozumiałe bez reszty wiadomości: z nazwami, miejscami i datami. Pytanie "Czy X?" zamień na twierdzenie "X". Słów, którymi wiadomość przedstawia zdarzenie jako bieżące ("dziś", "wczoraj", "właśnie", "najnowszy"), nie zamieniaj na datę kalendarzową: zostaw je w twierdzeniu, bo to, czy zdarzenie jest aktualne, też podlega ocenie.
 - Nie dodawaj faktów, których w wiadomości nie ma.
 - Nie rozbijaj jednego twierdzenia na części i niczego z niego nie pomijaj: jeśli zdanie łączy fakt z wnioskiem (np. „był alert i nadal jest zagrożenie”), zachowaj obie części w jednym twierdzeniu. Jedno pytanie użytkownika to zwykle jedno twierdzenie.
 - Zdjęcie lub zrzut ekranu: najpierw odczytaj widoczny tekst, datę i nadawcę, a twierdzenia wydziel z odczytanego tekstu.
@@ -34,7 +34,7 @@ ${TOOLS}
 - "ok": jest co najmniej jedno twierdzenie.
 - "needs_clarification": wiadomość jest zbyt niejasna, by wydzielić twierdzenie. W message poproś o doprecyzowanie. Nie proś o doprecyzowanie tylko dlatego, że nie znasz nazwy miejsca albo instytucji: takie twierdzenie da się wyszukać.
 - message piszesz do obywatela, prostym językiem. Nie wspominaj o etapach, planie ani wydzielaniu twierdzeń.
-- "out_of_scope": wiadomość nie zawiera nic do weryfikacji (np. pozdrowienie, prośba o napisanie tekstu). W message wyjaśnij, do czego służy usługa.
+- "out_of_scope": wiadomość nie zawiera nic do weryfikacji (np. pozdrowienie, prośba o napisanie tekstu). W message wyjaśnij, do czego służy usługa. Opinia, ocena, prognoza albo przekonanie to nie "out_of_scope": status "ok" i twierdzenie z checkable = false.
 
 ## Bezpieczeństwo
 ${DATA_NOT_COMMANDS}`;
@@ -79,12 +79,14 @@ Najpierw ustal rdzeń: zdarzenie, dokument albo fakt, o który chodzi w wiadomo�
   - stary materiał przedstawiony jako aktualny albo przeniesiony do innego miejsca lub sytuacji;
   - przypuszczenie, ocena polityka, zamiar albo przyczyna przedstawione jako pewny fakt, gdy materiał tego nie ustala;
   - prawdziwy fakt użyty jako dowód czegoś, czego nie pokazuje.
-- "brak wystarczających dowodów": materiały nie potwierdzają nawet rdzenia albo go nie dotyczą.
+- "brak wystarczających dowodów": materiały nie potwierdzają nawet rdzenia, nie dotyczą go albo nie podają konkretnego faktu, o który chodzi w twierdzeniu, i mu nie przeczą.
 - "nie podlega weryfikacji": opinia, ocena, prognoza, przekonanie.
 Rozróżnienie: gdy wiadomość twierdzi wprost coś konkretnego i to jest nieprawdą, wybierz "fałszywe". Gdy rdzeń się zgadza, a błędny jest dopiero obraz lub wniosek, wybierz "wprowadzające w błąd". Gdy rdzeń się zgadza, a niepotwierdzony dodatek (zamiar, przyczyna, aktualność) zmienia wymowę wiadomości, nie wstrzymuj się: wybierz "wprowadzające w błąd" i w explanation oddziel to, co materiał potwierdza, od tego, czego nie ustala. Jeśli materiał przytacza ocenę lub przypuszczenie (np. „wydaje się”, „może być”), napisz, kto tak ocenił.
 Zasady:
 - factCheckRating to ocena, którą redakcja fact-checkingowa wystawiła twierdzeniu opisanemu w untrusted_content. Zanim się na niej oprzesz, sprawdź, czy to jest to samo twierdzenie. Ocena "Fałsz" dla tego samego twierdzenia oznacza, że materiał mu przeczy.
 - Porównaj datę materiału z datą, o której mówi twierdzenie, i z dzisiejszą. Starszy materiał może być nieaktualny.
+- Gdy wiadomość przedstawia prawdziwe zdarzenie jako bieżące ("dziś", "wczoraj", "właśnie", "najnowszy"), a materiał "direct" pokazuje, że doszło do niego wcześniej, to stary materiał przedstawiony jako aktualny: "wprowadzające w błąd" z faktyczną datą w explanation, także wtedy, gdy twierdzenie ma już wpisaną dzisiejszą datę. "fałszywe" wybierz, gdy wiadomość podaje konkretną datę kalendarzową jako fakt, a materiał podaje inną. Gdy materiał nie ma daty, nie zakładaj, że jest stary.
+- Liczby porównuj tylko wtedy, gdy liczą to samo. Jeśli materiał podaje wartość dla innej kategorii, sumy lub okresu albo tylko przybliżenie ("ponad", "co najmniej", "kilkadziesiąt"), a wartość z twierdzenia da się z nim pogodzić, to nie jest sprzeczność: oznacz materiał jako "context", wybierz "brak wystarczających dowodów" i napisz w unknowns, jaki dokument podałby dokładną wartość. "fałszywe" tylko wtedy, gdy wartości się wykluczają.
 - Gdy materiały "direct" sobie przeczą, opisz rozbieżność w explanation i nie udawaj pewności.
 - O prawdziwości nie decyduje sama domena, autor ani popularność.
 - Jeśli lista "Źródła niedostępne" nie jest pusta, nie pisz, że czegoś nie ma: tego źródła nie udało się sprawdzić.

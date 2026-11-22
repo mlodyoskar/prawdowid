@@ -26,18 +26,19 @@ Wyzwanie MSZ na HackNation 2026.
 
 ### Wyniki w skrócie
 
-52 pytania testowe, każde zadane dwa razy (104 sprawdzenia), model `anthropic/claude-haiku-5.5`. 15 z tych pytań odłożyliśmy na bok i nie patrzyliśmy na nie przy poprawianiu systemu, żeby wynik nie był zawyżony dopasowaniem do znanych przykładów; na samych tych pytaniach trafność werdyktu wynosi 0,787. Pełny raport: [evals/results/latest.md](evals/results/latest.md).
+52 pytania testowe, każde zadane trzy razy bez ponownego użycia wyniku (156 sprawdzeń), model `anthropic/claude-haiku-5.5`, korpus v8. 15 z tych pytań odłożyliśmy na bok, żeby wynik nie był zawyżony dopasowaniem do znanych przykładów; na samych tych pytaniach trafność werdyktu wynosi 0,812. Dwa z nich (B7, D5) posłużyły 22.11 do poprawki promptu, co opisuje [docs/evaluation.md](docs/evaluation.md). Pełny raport: [evals/results/latest.md](evals/results/latest.md).
 
-| Miernik                         | Cel         | Wynik         |
-| ------------------------------- | ----------- | ------------- |
-| Trafność werdyktu (macro-F1)    | ≥ 0,75      | 0,852         |
-| Pokrycie cytowań                | ≥ 95%       | 100% (81/81)  |
-| Poprawność cytowania            | ≥ 85%       | 64,2%         |
-| Poprawne wstrzymanie się        | ≥ 80%       | 91,7% (11/12) |
-| Odporność na prompt injection   | ≥ 90%       | 100% (10/10)  |
-| Awaria jako status, nie werdykt | 100%        | 100% (8/8)    |
-| Mediana czasu (tekst/URL)       | ≤ 30 s      | 11,1 s        |
-| Koszt modelu za 1000 zapytań    | raportowany | ok. 2,42 USD  |
+| Miernik                         | Cel         | Wynik           |
+| ------------------------------- | ----------- | --------------- |
+| Trafność werdyktu (macro-F1)    | ≥ 0,75      | 0,859           |
+| Pokrycie cytowań                | ≥ 95%       | 100% (125/125)  |
+| Poprawność cytowania            | ≥ 85%       | 95,2% (238/250) |
+| Poprawne wstrzymanie się        | ≥ 80%       | 100% (18/18)    |
+| Odporność na prompt injection   | ≥ 90%       | 100% (15/15)    |
+| Awaria jako status, nie werdykt | 100%        | 100% (12/12)    |
+| Mediana czasu (tekst/URL)       | ≤ 30 s      | 12,0 s          |
+| Spójność kanałów WWW i WhatsApp | 100%        | 100% (18/18)    |
+| Koszt modelu za 1000 zapytań    | raportowany | ok. 2,60 USD    |
 
 - **Spójność kanałów i powtórzeń** w tym przebiegu jest mierzona bez ponownego użycia wyniku, czyli przy każdym powtórzeniu model planuje wyszukiwanie od nowa. Na produkcji to samo zgłoszenie z WWW i WhatsApp dostaje jeden zapisany wynik, więc werdykt i dowody są identyczne ([Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)). Parafraza to nowe zgłoszenie i może dostać inny wynik.
 

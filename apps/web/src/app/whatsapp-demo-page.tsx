@@ -10,7 +10,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 
-import { AppHeader, Button, cn, Eyebrow, ICON_STROKE, Notice } from '@/ui';
+import { AppHeader, Button, cn, Eyebrow, ICON_STROKE } from '@/ui';
 
 import { parseWhatsApp, type Segment } from '../lib/wa-markup.ts';
 import { ApiError } from './api.ts';
@@ -485,22 +485,6 @@ export function WhatsAppDemoPage() {
             Nowa rozmowa
           </Button>
         </div>
-
-        <Notice title="Jak to się ma do prawdziwego WhatsAppa">
-          <p>
-            Prawdziwy kanał przyjmuje wiadomości z numeru testowego Meta, do którego może pisać
-            najwyżej 5 dopisanych numerów. Ten symulator przekazuje wiadomość do tej samej obsługi
-            kanału, ale nic nie wysyła do Meta. Zamiast numeru telefonu używa losowego
-            identyfikatora rozmowy zapisanego w tej karcie przeglądarki.
-          </p>
-          <p>
-            To samo zgłoszenie wysłane tutaj i w{' '}
-            <a className="pw-link" href="/">
-              formularzu na stronie
-            </a>{' '}
-            dostaje ten sam werdykt i te same źródła. Link na końcu odpowiedzi otwiera pełny wynik.
-          </p>
-        </Notice>
       </main>
 
       <SiteFooter />

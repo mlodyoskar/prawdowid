@@ -22,6 +22,7 @@ Wyzwanie MSZ na HackNation 2026.
 | Źródła, licencje, kwalifikacja i aktualizacja   | [data/sources.ts](data/sources.ts) (jedyna lista, z licencją każdego źródła korpusu), [docs/data-sources.md](docs/data-sources.md), [Korpus](#korpus) |
 | Wyniki testów i sposób odtworzenia              | [evals/results/latest.md](evals/results/latest.md), [docs/evaluation.md](docs/evaluation.md), przypadki w [evals/cases.jsonl](evals/cases.jsonl)      |
 | Koszt kanału WhatsApp (1000 zapytań)            | [docs/koszty-whatsapp.md](docs/koszty-whatsapp.md)                                                                                                    |
+| Lista ryzyk                                     | [Ryzyka](#ryzyka)                                                                                                                                     |
 | Uruchomienie lokalne                            | [Uruchomienie](#uruchomienie)                                                                                                                         |
 
 ### Wyniki w skrócie
@@ -50,6 +51,17 @@ Wyzwanie MSZ na HackNation 2026.
 - **Nagrania audio i wideo:** nieobsługiwane.
 - **Języki:** pytania i odpowiedzi po polsku; nie przeszukujemy źródeł obcojęzycznych.
 - **Baza incydentów EUvsDisinfo:** niepodłączona.
+
+### Ryzyka
+
+Każde ryzyko ma zabezpieczenie w kodzie, ale żadne nie znika całkiem. Dlatego wynik zawsze pokazuje źródło, żeby użytkownik mógł ocenić je sam.
+
+- **Halucynacje.** Model może wymyślić fakt albo cytat. Kod przyjmuje tylko cytaty, które występują w pobranym materiale, a werdykt rozstrzygający wymaga dowodu dotyczącego sprawy wprost; bez niego werdykt zmienia się na „brak wystarczających dowodów”. Sędzia oceniający dowody nie ma narzędzi. Zostaje: model może źle zrozumieć prawdziwy cytat (poprawność cytowania 95,2% w ocenie sędziego-modelu).
+- **Stronniczość źródeł.** Korpus to komunikaty instytucji publicznych, a fact-checki pochodzą z Google Fact Check Tools, więc system widzi sprawy oczami urzędów i fact-checkerów, którzy też się mylą albo spóźniają. Domena, wydawca ani status źródła nie przesądzają o prawdziwości. Każdy dowód ma wydawcę, datę i link, stary materiał jest oznaczany jako archiwalny, a wysoka siła podstawy wymaga co najmniej dwóch niezależnych wydawców. Zostaje: w korpusie nie ma mediów ani źródeł pozarządowych, a sprawy spoza katalogu kończą się wstrzymaniem.
+- **Prywatność.** Wklejane wiadomości mogą zawierać dane osobowe. Kod maskuje e-mail, telefon, PESEL, NIP, REGON, IBAN, numer karty, dowodu, paszportu, księgi wieczystej i adres IP, zanim tekst trafi do modelu, źródeł i zapisu. Zapis sprawdzenia znika po 72 h (`CHECKS_RETENTION_HOURS`), a wcześniej można go usunąć (`DELETE /api/checks/:checkId`, w WhatsApp `USUŃ`). Numer telefonu z WhatsApp jest tylko w pamięci procesu. Zostaje: maskowanie działa na wzorcach i nie rozpozna imion, nazwisk ani adresów, a zamaskowana treść trafia do zewnętrznego dostawcy modelu.
+- **Prompt injection.** Wiadomość, strona z linku albo dokument mogą zawierać polecenia dla modelu. Treść źródeł czyta tylko sędzia bez narzędzi, wzorce w kodzie odrzucają podejrzany materiał przed oceną, a sędzia dodatkowo oznacza polecenia, które przeoczyły wzorce. Każde zdarzenie trafia do ostrzeżeń w wyniku i do logu `prompt_injection_suspected`. W ewaluacji odparte 15 z 15 prób. Zostaje: wzorce nie wyłapią każdej parafrazy.
+- **Dostępność.** Jedna strona w stylu gov.pl, która działa na telefonie, z kontrastem tekstu co najmniej 4,5:1, werdyktem zawsze w postaci ikony i słowa oraz prostym językiem. Kto nie chce otwierać strony, może napisać na WhatsAppie. Bez konta i bez opłat. Zostaje: tylko język polski i brak obsługi nagrań audio.
+- **Nadużycia.** Ktoś może zalewać usługę zapytaniami, podsyłać złośliwe linki albo rozpowszechniać werdykt wyrwany z kontekstu. Limity: 10 sprawdzeń na minutę z jednego IP, 5 wiadomości na minutę z numeru WhatsApp, kolejka do 50 zadań, tekst do 4000 znaków i najwyżej 2 linki. Linki pobieramy z ochroną SSRF, a webhook Meta sprawdza podpis. Każdy wynik ma własny adres ze źródłami, więc zrzut werdyktu da się sprawdzić. Zostaje: jedna instancja API ma ograniczoną przepustowość przy dużym ruchu.
 
 ## Mapa repo
 

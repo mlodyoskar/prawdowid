@@ -9,6 +9,15 @@ Lista URL-i jest w [`data/sources.ts`](../data/sources.ts) (`SOURCES`): 40 przyk
 - Tematy: podróże i ostrzeżenia (Odyseusz, MSZ, RCB, RSO), służby i bezpieczeństwo (Policja, PSP, MON, CERT), zdrowie i środowisko (GIS, PAA, GIOŚ), transport (MI, GDDKiA, ULC, UTK, Portal Pasażera), żegluga i pogoda (urzędy morskie, Wody Polskie, IMGW).
 - Nasza interpretacja: pytania będą raczej o aktualności, ostrzeżenia, kryzysy, podróże i transport, a nie tylko o geopolitykę.
 
+### Snapshot korpusu v8
+
+[`data/corpus/snapshot.jsonl`](../data/corpus/snapshot.jsonl) w wersji `snapshot-2026-11-22-v8` to połączenie dwóch pobrań, bez żadnej ręcznej zmiany treści:
+
+- wszystkie 232 dokumenty z `snapshot-2026-11-21-v3`, w treści z tamtego pobrania (z linią daty w tekście stron gov.pl);
+- 395 dokumentów z `snapshot-2026-11-22-v7`, których adresów nie było w v3 (14 nowych źródeł: Odyseusz, Straż Graniczna, PZH, IMGW, MSZ, ABW, Prokuratura Krajowa i inne).
+
+Dokumenty v3, które scraper v7 pobrał ponownie, zostały w wersji v3, a dokumenty, których v7 już nie znalazł, nie wypadły. Kluczem jest adres URL, identyfikatory `doc-…` są nadane od nowa. Razem 627 dokumentów z 19 serwisów.
+
 ## 2. Bazy zweryfikowanych informacji (fact-checki)
 
 W [`data/sources.ts`](../data/sources.ts) (`FACT_CHECK_SOURCES`): Google Fact Check Explorer i Google Fact Check Tools API (REST).
@@ -26,10 +35,7 @@ Bazą incydentów jest EUvsDisinfo, a nie plik JSON/CSV. Integracja jest **opcjo
 **Dokumentacja:**
 
 - [Instrukcja masowego pobrania artykułów i przypadków (PDF)](https://euvsdisinfo.eu/public-docs/How_to_grab_all_Articles_and_Cases_from_disinfo.pdf)
-- [Dokumentacja MCP / API](https://veedoo.fibery.io/Documentation/Guides/EUvsDisinfo-MCP.-API.-%2807.2025%29-262?sharing-key=b10c22de-b630-4efc-824d-e117d530a4c8)
-- [Podłączenie narzędzi AI (np. Claude Desktop) do serwera MCP](<https://veedoo.fibery.io/Documentation/Guides/Connect-AI-tools-assistans-for-MCP-server-(5-05-2026)-268?sharing-key=91744a47-cc53-4904-a4f4-29ef0533d304>)
-
-> ⚠️ Dwa ostatnie linki zawierają prywatny `sharing-key`. Usunąć je przed upublicznieniem repo lub oddaniem projektu.
+- Dokumentacja MCP / API i instrukcja podłączenia narzędzi AI do serwera MCP: udostępniana przez EUvsDisinfo razem z tokenem (link prywatny, nie trzymamy go w repo).
 
 **Stan (2026-11-22):** podłączone na żywo przez narzędzie MCP `search` ([packages/sources/src/euvsdisinfo.ts](../packages/sources/src/euvsdisinfo.ts), dopasowanie w [packages/agent/src/incidents.ts](../packages/agent/src/incidents.ts), wpis w `INCIDENT_SOURCES` w [data/sources.ts](../data/sources.ts)). Działa, gdy ustawiony jest `EUVSDISINFO_API_KEY`.
 

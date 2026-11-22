@@ -28,7 +28,7 @@ import {
   SummaryBanner,
 } from '@/ui';
 
-import { EvidenceSource } from './evidence-source.tsx';
+import { EvidenceSource, RelatedMaterial } from './evidence-source.tsx';
 import { IncidentCatalogLine, IncidentContext } from './incident-context.tsx';
 
 const CLAIM_FORMS = ['twierdzenie', 'twierdzenia', 'twierdzeń'] as const;
@@ -59,7 +59,15 @@ const ERROR_TITLE: Record<ErrorCode, string> = {
   sources_unavailable: 'Źródła są chwilowo niedostępne',
 };
 
-function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evidence[] }) {
+function ClaimEvidence({
+  claim,
+  evidence,
+  related,
+}: {
+  claim: ClaimResult;
+  evidence: Evidence[];
+  related: Evidence[];
+}) {
   // Fragments of one page are one source: the same grouping and order as on WhatsApp.
   const [first, ...rest] = groupBySource(evidence, claim.evidenceUse);
   const insufficient = claim.verdict === 'brak wystarczających dowodów';
@@ -77,7 +85,7 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
         </Notice>
       ) : null}
       {first ? <EvidenceSource group={first} /> : null}
-      {rest.length > 0 || hasLimitations ? (
+      {rest.length > 0 || hasLimitations || related.length > 0 ? (
         <Accordion type="multiple" defaultValue={insufficient ? ['limitations'] : []}>
           {rest.length > 0 ? (
             <AccordionItem value="sources">
@@ -86,6 +94,21 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
                 {rest.map((g, i) => (
                   <EvidenceSource key={`${i}-${g.evidence.id}`} group={g} />
                 ))}
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
+          {related.length > 0 ? (
+            <AccordionItem value="related">
+              <AccordionTrigger>Inne materiały na ten temat ({related.length})</AccordionTrigger>
+              <AccordionContent className="flex flex-col gap-3">
+                <p className="m-0 text-body text-ink-muted">
+                  Dotyczą podobnego tematu, ale innej sprawy. Nie są podstawą wyniku.
+                </p>
+                <ul className="m-0 flex list-none flex-col gap-3 p-0">
+                  {related.map((e, i) => (
+                    <RelatedMaterial key={`${i}-${e.id}`} evidence={e} />
+                  ))}
+                </ul>
               </AccordionContent>
             </AccordionItem>
           ) : null}
@@ -108,7 +131,9 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
       ) : null}
       <p className="m-0 text-caption text-ink-muted">
         {groups.length === 0
-          ? 'Nie znaleźliśmy źródeł na ten temat.'
+          ? related.length > 0
+            ? 'Nie znaleźliśmy źródła, które dotyczy tej sprawy.'
+            : 'Nie znaleźliśmy źródeł na ten temat.'
           : basis > 0
             ? `Na podstawie: ${count(basis, SOURCE_FORMS)}.`
             : `Znalezione materiały (${context}) tylko uzupełniają kontekst.`}
@@ -159,6 +184,7 @@ function OkView({ result, escalation }: { result: OkResult; escalation?: CaseEsc
             <ClaimEvidence
               claim={claim}
               evidence={claim.evidenceIds.flatMap((id) => byId.get(id) ?? [])}
+              related={(claim.relatedIds ?? []).flatMap((id) => byId.get(id) ?? [])}
             />
             <IncidentContext
               incidents={(result.incidents ?? []).filter((m) => m.claimIndex === i)}

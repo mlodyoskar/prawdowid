@@ -49,6 +49,13 @@
   --caution: #6b5300;
   --caution-bg: #fbf6e3;
 
+  /* Messenger simulator (/whatsapp): a generic green chat look, no third-party branding */
+  --chat-bar: light-dark(#1f6e43, #1d5a38); /* Conversation header; white text ≥4.5:1 */
+  --on-chat-bar: #ffffff;
+  --chat-bg: light-dark(#eef1ee, #15191c); /* Conversation background */
+  --chat-in: light-dark(#ffffff, #23272d); /* Bubble from the service */
+  --chat-out: light-dark(#d9f2d3, #1f4a2c); /* Bubble from the user */
+
   /* Shadows (the pw- prefix keeps them apart from Tailwind's --shadow-* theme names) */
   --pw-shadow-bar: 0 1px 0 #e6e6e6, 0 2px 6px rgb(0 0 0 / 0.06);
 }

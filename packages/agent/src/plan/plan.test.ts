@@ -110,7 +110,7 @@ test('reguły: zmyślony cytat i nieznane id nie uzasadniają werdyktu', () => {
   assert.ok(g.notes.some((n) => n.includes('doc_9')));
 });
 
-test('reguły: materiał z tego samego tematu, ale o innej sprawie, daje tylko kontekst', () => {
+test('reguły: materiał o innej sprawie nie jest cytatem, tylko innym materiałem na ten temat', () => {
   const g = applyGuardrails(
     judgement({
       items: [
@@ -126,7 +126,39 @@ test('reguły: materiał z tego samego tematu, ale o innej sprawie, daje tylko k
     available(doc()),
   );
   assert.equal(g.verdict, 'brak wystarczających dowodów');
-  assert.equal(g.evidenceUse[0]?.stance, 'context');
+  assert.deepEqual(g.evidenceUse, []);
+  assert.deepEqual(g.relatedIds, ['doc_1']);
+  assert.equal(g.hasDirect, false);
+});
+
+test('reguły: dokument cytowany wprost nie powtarza się wśród innych materiałów', () => {
+  const g = applyGuardrails(
+    judgement({
+      verdict: 'potwierdzone',
+      items: [
+        {
+          id: 'doc_1',
+          relation: 'direct',
+          stance: 'supports',
+          quote: 'Bruksela, Belgia',
+          addressesModel: false,
+        },
+        {
+          id: 'doc_2',
+          relation: 'related',
+          stance: 'context',
+          quote: '',
+          addressesModel: false,
+        },
+      ],
+    }),
+    available(doc(), doc({ id: 'doc_2' })),
+  );
+  assert.deepEqual(
+    g.evidenceUse.map((u) => u.id),
+    ['doc_1'],
+  );
+  assert.deepEqual(g.relatedIds, []);
 });
 
 test('reguły: ocena fact-checka jest cytatem, a sprzeczne źródła dają rozbieżność', () => {
@@ -300,7 +332,7 @@ test('siła podstawy: materiały są, ale nie rozstrzygają → przesłanka mów
   assert.deepEqual(s.reasons, ['Materiały dotyczące twierdzenia nie pozwalają go rozstrzygnąć.']);
 });
 
-test('reguły: materiałów tylko z tego samego tematu trafia do wyniku najwyżej dwa', () => {
+test('reguły: innych materiałów na ten temat trafia do wyniku najwyżej dwa', () => {
   const docs = [1, 2, 3, 4].map((n) => doc({ id: `doc_${n}`, url: `https://www.gov.pl/${n}` }));
   const g = applyGuardrails(
     judgement({
@@ -315,10 +347,8 @@ test('reguły: materiałów tylko z tego samego tematu trafia do wyniku najwyże
     }),
     available(...docs),
   );
-  assert.deepEqual(
-    g.evidenceUse.map((u) => u.id),
-    ['doc_1', 'doc_2'],
-  );
+  assert.deepEqual(g.evidenceUse, []);
+  assert.deepEqual(g.relatedIds, ['doc_1', 'doc_2']);
 });
 
 test('reguły: z jednego dokumentu zostają fragmenty rozstrzygające albo jeden fragment kontekstu', () => {

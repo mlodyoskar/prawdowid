@@ -4,6 +4,52 @@ Narzędzie do weryfikacji informacji dla obywatela: przyjmuje tekst lub URL prze
 
 Wyzwanie MSZ na HackNation 2026.
 
+## Dla jury
+
+### Demo
+
+- **Strona WWW:** https://prawdowidweb-production.up.railway.app — wpisz pytanie, wklej link albo dodaj zrzut ekranu. Nie potrzeba konta ani kluczy.
+- **Drugi kanał: WhatsApp** (oficjalne WhatsApp Cloud API). Numer testowy Meta przyjmuje wiadomości najwyżej od 5 numerów dopisanych ręcznie, więc jury nie napisze do niego samo. Dlatego jest **adapter demonstracyjny**: https://prawdowidweb-production.up.railway.app/whatsapp to czat, który wysyła wiadomość przez ten sam kod kanału co prawdziwy webhook Meta (komendy POMOC i USUŃ, limity, komunikaty o błędach, format odpowiedzi). Różni się tylko ostatnim krokiem: odpowiedź trafia do okna czatu zamiast do Meta. Prawdziwy kanał pokazujemy na zrzutach ekranu i w filmie. Wiadomość trafia do tej samej kolejki i tej samej funkcji `runVerification()` co strona, więc werdykt i dowody są te same ([Kanał WhatsApp](#kanał-whatsapp)). Ewaluacja sprawdza to na prawdziwym, podpisanym webhooku (scenariusz G).
+- Każde sprawdzenie ma własny adres (`?check=…`), który można odświeżyć i udostępnić. Sprawdzenie da się usunąć.
+
+### Materiały
+
+| Czego szukasz                                   | Gdzie                                                                                                                                                 |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Opis, prezentacja PDF, film                     | W zgłoszeniu na HackTribe                                                                                                                             |
+| Zrzuty ekranu kanału WhatsApp                   | W prezentacji i filmie                                                                                                                                |
+| Architektura, przepływ danych, modele, dostawcy | [Mapa repo](#mapa-repo), [docs/agent.md](docs/agent.md), [Wdrożenie](#wdrożenie-railway)                                                              |
+| Źródła, licencje, kwalifikacja i aktualizacja   | [data/sources.ts](data/sources.ts) (jedyna lista, z licencją każdego źródła korpusu), [docs/data-sources.md](docs/data-sources.md), [Korpus](#korpus) |
+| Wyniki testów i sposób odtworzenia              | [evals/results/latest.md](evals/results/latest.md), [docs/evaluation.md](docs/evaluation.md), przypadki w [evals/cases.jsonl](evals/cases.jsonl)      |
+| Koszt kanału WhatsApp (1000 zapytań)            | [docs/koszty-whatsapp.md](docs/koszty-whatsapp.md)                                                                                                    |
+| Uruchomienie lokalne                            | [Uruchomienie](#uruchomienie)                                                                                                                         |
+
+### Wyniki w skrócie
+
+52 pytania testowe, każde zadane dwa razy (104 sprawdzenia), model `anthropic/claude-haiku-5.5`. 15 z tych pytań odłożyliśmy na bok i nie patrzyliśmy na nie przy poprawianiu systemu, żeby wynik nie był zawyżony dopasowaniem do znanych przykładów; na samych tych pytaniach trafność werdyktu wynosi 0,787. Pełny raport: [evals/results/latest.md](evals/results/latest.md).
+
+| Miernik                         | Cel         | Wynik         |
+| ------------------------------- | ----------- | ------------- |
+| Trafność werdyktu (macro-F1)    | ≥ 0,75      | 0,852         |
+| Pokrycie cytowań                | ≥ 95%       | 100% (81/81)  |
+| Poprawność cytowania            | ≥ 85%       | 64,2%         |
+| Poprawne wstrzymanie się        | ≥ 80%       | 91,7% (11/12) |
+| Odporność na prompt injection   | ≥ 90%       | 100% (10/10)  |
+| Awaria jako status, nie werdykt | 100%        | 100% (8/8)    |
+| Mediana czasu (tekst/URL)       | ≤ 30 s      | 11,1 s        |
+| Koszt modelu za 1000 zapytań    | raportowany | ok. 2,42 USD  |
+
+- **Spójność kanałów i powtórzeń** w tym przebiegu jest mierzona bez ponownego użycia wyniku, czyli przy każdym powtórzeniu model planuje wyszukiwanie od nowa. Na produkcji to samo zgłoszenie z WWW i WhatsApp dostaje jeden zapisany wynik, więc werdykt i dowody są identyczne ([Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)). Parafraza to nowe zgłoszenie i może dostać inny wynik.
+
+### Czego system nie obsługuje
+
+- **Wiedza tylko z jawnego zbioru:** korpus komunikatów urzędowych (snapshot w repo) i fact-checki z Google Fact Check Tools API. Brak wyniku nie oznacza, że zdarzenia nie było; system wtedy się wstrzymuje.
+- **Strony spoza katalogu** podane w pytaniu są pobierane i oceniane jako materiał, nigdy jako dowód.
+- **Obrazy:** zrzut ekranu lub zdjęcie z tekstem jest obsługiwane: model odczytuje treść i datę, a system weryfikuje je jak tekst (data na obrazie nie potwierdza daty publikacji). Nie ma natomiast wyszukiwania wcześniejszych wystąpień obrazu (reverse image), analizy metadanych pliku ani wykrywania obrazów wygenerowanych przez AI.
+- **Nagrania audio i wideo:** nieobsługiwane.
+- **Języki:** pytania i odpowiedzi po polsku; nie przeszukujemy źródeł obcojęzycznych.
+- **Baza incydentów EUvsDisinfo:** niepodłączona.
+
 ## Mapa repo
 
 ### Kod
@@ -121,6 +167,7 @@ Zasady z makiet: werdykt zawsze ma ikonę i słowo; komunikat systemowy (awaria,
 Drugi kanał działa przez oficjalne WhatsApp Cloud API od Meta. Kod jest w [apps/api/src/whatsapp](apps/api/src/whatsapp) i jest tylko adapterem: wiadomość trafia do tej samej kolejki co zgłoszenie z WWW (`JobRunner` → `runVerification()`). To samo zgłoszenie z obu kanałów dostaje jeden wynik (patrz [Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)), więc werdykt i dowody są te same. Odpowiedź zaczyna się od werdyktu, podaje z cytatem każdą publikację, na której opiera się werdykt (te same co WWW, kontekst zostaje w pełnym wyniku), i kończy linkiem `WEB_ORIGIN/w/<id>`, który otwiera ten sam zapisany wynik na stronie.
 
 - Obsługiwane: tekst, link, zdjęcie (z podpisem lub bez). `POMOC` pokazuje instrukcję, `USUŃ` kasuje sprawdzenia wysłane z tego numeru.
+- Adapter demonstracyjny: strona `/whatsapp` i trasy `POST/GET/DELETE /api/demo/whatsapp/messages` ([demo.ts](apps/api/src/whatsapp/demo.ts)). Wiadomość z przeglądarki staje się payloadem w kształcie Meta i idzie przez to samo `handlePayload()` co webhook; zamiast `GraphClient` odpowiedź trafia do pamięciowej skrzynki odbieranej odpytywaniem. Numer telefonu zastępuje losowy identyfikator przeglądarki. Działa bez zmiennych `WHATSAPP_*`, wyłącza go `DEMO_CHANNEL=false`.
 - Zamiast wiadomości „Sprawdzam…” kanał oznacza zgłoszenie jako przeczytane i pokazuje „pisze…” (ponawiane co 20 s, bo Meta gasi wskaźnik po 25 s). To nie jest wiadomość, więc nie zużywa puli 1000 darmowych wiadomości serwisowych miesięcznie; na jedno sprawdzenie przypada jedna wiadomość, czyli odpowiedź.
 - Koszt wiadomości Meta (stawki dla Polski, darmowa pula, przeliczenie na 1000 zapytań): [docs/koszty-whatsapp.md](docs/koszty-whatsapp.md).
 - Awaria (brak modelu, pełna kolejka, nieudane pobranie zdjęcia, błąd sprawdzenia) wraca jako komunikat „To nie jest werdykt”.

@@ -6,7 +6,7 @@ import { getConnInfo } from '@hono/node-server/conninfo';
 import { runVerification } from '@prawdowid/agent';
 import type { CaseEscalation } from '@prawdowid/contracts';
 import { fetchPage, openCorpus, searchFactChecks, searchIncidents } from '@prawdowid/sources';
-import type { Context } from 'hono';
+import type { Context, Hono } from 'hono';
 
 import { createApp } from './app.ts';
 import { SqliteCaseStore } from './cases.ts';
@@ -15,8 +15,9 @@ import { loadEnv } from './env.ts';
 import { JobRunner, SqliteJobStore } from './jobs.ts';
 import { resolveModel } from './model.ts';
 import { isReusable, reuseKey } from './reuse.ts';
+import { DemoTransport, demoRoutes } from './whatsapp/demo.ts';
 import { GraphClient } from './whatsapp/graph.ts';
-import { WhatsAppChannel } from './whatsapp/webhook.ts';
+import { WhatsAppChannel, metaWebhookRoutes } from './whatsapp/webhook.ts';
 
 const env = loadEnv();
 type Level = 'info' | 'warn' | 'error';
@@ -96,8 +97,10 @@ const reuseSalt = JSON.stringify([
   corpusInfo.version,
 ]);
 
-// Kanał WhatsApp korzysta z tego samego runnera; `onDone` niżej odsyła mu wyniki.
+// Kanał WhatsApp i jego symulator korzystają z tego samego runnera; `onDone` niżej odsyła im wyniki
+// (każdy kanał odpowiada tylko na sprawdzenia, które sam zgłosił).
 let whatsapp: WhatsAppChannel | undefined;
+let whatsappDemo: WhatsAppChannel | undefined;
 
 const runner = new JobRunner({
   store,
@@ -188,9 +191,11 @@ const runner = new JobRunner({
       response.status === 'error' ? 'warn' : 'info',
     );
     whatsapp?.onCheckDone(checkId, response, escalation);
+    whatsappDemo?.onCheckDone(checkId, response, escalation);
   },
 });
 
+let whatsappRoutes: Hono | undefined;
 if (
   env.WHATSAPP_ACCESS_TOKEN &&
   env.WHATSAPP_PHONE_NUMBER_ID &&
@@ -198,17 +203,20 @@ if (
   env.WHATSAPP_VERIFY_TOKEN
 ) {
   whatsapp = new WhatsAppChannel({
-    graph: new GraphClient({
+    transport: new GraphClient({
       accessToken: env.WHATSAPP_ACCESS_TOKEN,
       phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
       version: env.WHATSAPP_GRAPH_VERSION,
     }),
     runner,
-    appSecret: env.WHATSAPP_APP_SECRET,
-    verifyToken: env.WHATSAPP_VERIFY_TOKEN,
     webOrigin: env.WEB_ORIGIN,
     llmConfigured: model !== null,
     ratePerMinute: env.WHATSAPP_RATE_LIMIT_PER_MINUTE,
+    log,
+  });
+  whatsappRoutes = metaWebhookRoutes(whatsapp, {
+    appSecret: env.WHATSAPP_APP_SECRET,
+    verifyToken: env.WHATSAPP_VERIFY_TOKEN,
     log,
   });
   log('whatsapp_enabled', { graphVersion: env.WHATSAPP_GRAPH_VERSION });
@@ -222,6 +230,24 @@ if (
     ] as const
   ).filter((k) => !env[k]);
   log('whatsapp_disabled', { missing }, missing.length === 4 ? 'info' : 'warn');
+}
+
+// Symulator w WWW: ta sama klasa kanału, transport w pamięci zamiast Graph API.
+let whatsappDemoRoutes: Hono | undefined;
+if (env.DEMO_CHANNEL) {
+  const demoLog: typeof log = (event, data, level) =>
+    log(event, { channel: 'whatsapp_demo', ...data }, level);
+  const transport = new DemoTransport();
+  whatsappDemo = new WhatsAppChannel({
+    transport,
+    runner,
+    webOrigin: env.WEB_ORIGIN,
+    llmConfigured: model !== null,
+    ratePerMinute: env.WHATSAPP_RATE_LIMIT_PER_MINUTE,
+    log: demoLog,
+  });
+  whatsappDemoRoutes = demoRoutes(whatsappDemo, transport, { log: demoLog });
+  log('whatsapp_demo_enabled');
 }
 
 /** IP klienta. X-Forwarded-For tylko za zaufanym proxy (TRUST_PROXY=true), inaczej łatwo go podrobić. */
@@ -255,7 +281,8 @@ const app = createApp({
     getPerMinute: env.RATE_LIMIT_GET_PER_MINUTE,
   },
   onRateLimited: (event) => log('rate_limited', event, 'warn'),
-  whatsapp,
+  whatsapp: whatsappRoutes,
+  whatsappDemo: whatsappDemoRoutes,
 });
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) =>
@@ -271,7 +298,10 @@ const shutdown = async () => {
   log('server_stopping');
   server.close();
   await runner.shutdown(10_000);
-  await Promise.race([whatsapp?.idle(), new Promise((r) => setTimeout(r, 5_000).unref())]);
+  await Promise.race([
+    Promise.all([whatsapp?.idle(), whatsappDemo?.idle()]),
+    new Promise((r) => setTimeout(r, 5_000).unref()),
+  ]);
   corpus.close();
   store.close();
   cases.close();

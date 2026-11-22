@@ -87,6 +87,7 @@ Kod stosuje reguły w tej kolejności:
 4. Gdy werdykt to `brak wystarczających dowodów`, a któreś źródło było niedostępne, twierdzenie trafia do listy `unchecked` z powodem. Jeśli nie zostało żadne ocenione twierdzenie, całe sprawdzenie kończy się statusem `error` z kodem `sources_unavailable`.
 5. Twierdzenie, które model przy wydzielaniu uznał za opinię lub prognozę, dostaje `nie podlega weryfikacji` bez wyszukiwania.
 6. Jeden dokument korpusu może dać kilka fragmentów. Do wyniku trafiają fragmenty, które potwierdzają lub przeczą, a z dokumentu bez takich fragmentów: jeden fragment kontekstu.
+7. Cytaty (`evidenceUse`) pochodzą wyłącznie z materiałów `direct`; rola `context` oznacza fragment o tej samej sprawie, który pomaga ją ocenić (np. faktyczna data). Materiał `related` (ten sam temat, inna sprawa) nie jest cytatem ani dowodem: trafia do `relatedIds`, najwyżej dwa na twierdzenie, bez fragmentu i bez roli. WWW pokazuje je w osobnej sekcji „Inne materiały na ten temat”, WhatsApp tylko je zlicza. Sędzia nie może opierać na nich wyjaśnienia.
 
 ### Siła podstawy
 

@@ -35,6 +35,27 @@ function typeLabel(e: Evidence): string {
 }
 
 /**
+ * Material on the same topic but about a different matter: title, publisher, date and link only.
+ * No quote and no role, because it is not evidence for the claim.
+ */
+export function RelatedMaterial({ evidence: e }: { evidence: Evidence }) {
+  const web = isWebUrl(e.url);
+  const meta = [e.publisher, formatDate(e.publishedAt)].filter(Boolean).join(' · ');
+  return (
+    <li className="flex flex-col gap-0.5">
+      {web ? (
+        <a href={e.url} target="_blank" rel="noreferrer" className="text-body font-bold">
+          {e.title}
+        </a>
+      ) : (
+        <span className="text-body font-bold">{e.title}</span>
+      )}
+      {meta ? <span className="text-caption text-ink-muted">{meta}</span> : null}
+    </li>
+  );
+}
+
+/**
  * One publication behind a claim, as a SourceCard. Fragments of the same page (the search
  * returns them separately) become quotes in one card instead of repeated cards.
  */

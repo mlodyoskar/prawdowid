@@ -6,6 +6,7 @@ import {
   type CaseEscalation,
   type CheckJob,
   type CheckResponse,
+  type ImageInput,
 } from '@prawdowid/contracts';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -13,16 +14,25 @@ import { z } from 'zod';
 
 import { FixedWindowLimiter, hashClientKey } from '../rate-limit.ts';
 import { formatReply } from './format.ts';
-import type { GraphClient } from './graph.ts';
+import type { GraphResult } from './graph.ts';
 
 type Level = 'info' | 'warn' | 'error';
 export type ChannelLog = (event: string, data?: Record<string, unknown>, level?: Level) => void;
 
+/**
+ * Strona wychodząca kanału, w kształcie WhatsApp Cloud API. Prawdziwy kanał używa `GraphClient`,
+ * symulator w WWW `DemoTransport` (demo.ts). Logika wiadomości jest jedna, w `WhatsAppChannel`.
+ */
+export interface ChannelTransport {
+  sendText(to: string, body: string): Promise<GraphResult<void>>;
+  /** „Przeczytano, pisze…”. `to` potrzebuje tylko symulator (Graph API zna nadawcę z id wiadomości). */
+  markReadTyping(messageId: string, to: string): Promise<GraphResult<void>>;
+  downloadImage(mediaId: string): Promise<GraphResult<ImageInput>>;
+}
+
 export type WhatsAppChannelDeps = {
-  graph: Pick<GraphClient, 'sendText' | 'downloadImage' | 'markReadTyping'>;
+  transport: ChannelTransport;
   runner: { enqueue(input: CheckRequest): CheckJob | null; delete(id: string): boolean };
-  appSecret: string;
-  verifyToken: string;
   /** Adres frontendu: link do pełnego wyniku w WWW. */
   webOrigin: string;
   llmConfigured: boolean;
@@ -140,41 +150,9 @@ export class WhatsAppChannel {
     });
   }
 
-  /** Trasy montowane pod `/webhooks/whatsapp`. */
-  routes(): Hono {
-    const r = new Hono();
-
-    // Weryfikacja subskrypcji przy konfiguracji webhooka w panelu Meta.
-    r.get('/', (c) => {
-      const ok =
-        c.req.query('hub.mode') === 'subscribe' &&
-        c.req.query('hub.verify_token') === this.#deps.verifyToken;
-      const challenge = c.req.query('hub.challenge');
-      if (!ok || !challenge) return c.text('Forbidden', 403);
-      return c.text(challenge, 200);
-    });
-
-    r.post(
-      '/',
-      bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.text('Payload too large', 413) }),
-      async (c) => {
-        const raw = await c.req.text();
-        if (!verifySignature(raw, c.req.header('x-hub-signature-256'), this.#deps.appSecret)) {
-          this.#deps.log('whatsapp_bad_signature', {}, 'warn');
-          return c.text('Unauthorized', 401);
-        }
-        let json: unknown;
-        try {
-          json = JSON.parse(raw);
-        } catch {
-          return c.text('Bad Request', 400);
-        }
-        // Meta ponawia webhook bez szybkiego 200, więc przetwarzamy w tle.
-        this.#track(this.handlePayload(json));
-        return c.text('OK', 200);
-      },
-    );
-    return r;
+  /** Przyjmuje payload webhooka i przetwarza go w tle (Meta ponawia webhook bez szybkiego 200). */
+  receive(payload: unknown): void {
+    this.#track(this.handlePayload(payload));
   }
 
   /** Czeka na zakończenie przetwarzania w tle (testy, zamykanie serwera). */
@@ -225,7 +203,7 @@ export class WhatsAppChannel {
       }
       input = { text: body };
     } else if (msg.type === 'image' && msg.image) {
-      const image = await this.#deps.graph.downloadImage(msg.image.id);
+      const image = await this.#deps.transport.downloadImage(msg.image.id);
       if (!image.ok) {
         this.#deps.log('whatsapp_media_failed', { sender, error: image.error }, 'warn');
         await this.#send(msg.from, MESSAGES.imageFailed);
@@ -259,7 +237,7 @@ export class WhatsAppChannel {
     this.#bySender.set(msg.from, checks.slice(-MAX_CHECKS_PER_SENDER));
     // Zamiast wiadomości „Sprawdzam…”: „przeczytano” i „pisze…”. To nie jest wiadomość,
     // więc nie zużywa płatnej puli wiadomości serwisowych.
-    const ack = this.#markReadTyping(msg.id, sender);
+    const ack = this.#markReadTyping(msg.id, msg.from);
     const entry: Pending = { to: msg.from, ack };
     this.#pending.set(job.checkId, entry);
     this.#deps.log('whatsapp_check_enqueued', { sender, checkId: job.checkId });
@@ -269,7 +247,7 @@ export class WhatsAppChannel {
       entry.typing = setInterval(() => {
         if (--left < 0) return this.#stopTyping(entry);
         this.#track(
-          this.#markReadTyping(msg.id, sender).then((ok) => {
+          this.#markReadTyping(msg.id, msg.from).then((ok) => {
             if (!ok) this.#stopTyping(entry);
           }),
         );
@@ -316,9 +294,15 @@ export class WhatsAppChannel {
     await this.#send(from, MESSAGES.deleted(deleted));
   }
 
-  async #markReadTyping(messageId: string, sender: string): Promise<boolean> {
-    const res = await this.#deps.graph.markReadTyping(messageId);
-    if (!res.ok) this.#deps.log('whatsapp_typing_failed', { sender, error: res.error }, 'warn');
+  async #markReadTyping(messageId: string, from: string): Promise<boolean> {
+    const res = await this.#deps.transport.markReadTyping(messageId, from);
+    if (!res.ok) {
+      this.#deps.log(
+        'whatsapp_typing_failed',
+        { sender: hashClientKey(from), error: res.error },
+        'warn',
+      );
+    }
     return res.ok;
   }
 
@@ -328,7 +312,7 @@ export class WhatsAppChannel {
   }
 
   async #send(to: string, body: string): Promise<boolean> {
-    const res = await this.#deps.graph.sendText(to, body);
+    const res = await this.#deps.transport.sendText(to, body);
     if (!res.ok) {
       this.#deps.log(
         'whatsapp_send_failed',
@@ -358,4 +342,46 @@ export class WhatsAppChannel {
     this.#inflight.add(tracked);
     void tracked.finally(() => this.#inflight.delete(tracked));
   }
+}
+
+export type MetaWebhookOptions = {
+  appSecret: string;
+  verifyToken: string;
+  log: ChannelLog;
+};
+
+/** Trasy webhooka Meta montowane pod `/webhooks/whatsapp`: podpis, potem wspólny `WhatsAppChannel`. */
+export function metaWebhookRoutes(channel: WhatsAppChannel, opts: MetaWebhookOptions): Hono {
+  const r = new Hono();
+
+  // Weryfikacja subskrypcji przy konfiguracji webhooka w panelu Meta.
+  r.get('/', (c) => {
+    const ok =
+      c.req.query('hub.mode') === 'subscribe' &&
+      c.req.query('hub.verify_token') === opts.verifyToken;
+    const challenge = c.req.query('hub.challenge');
+    if (!ok || !challenge) return c.text('Forbidden', 403);
+    return c.text(challenge, 200);
+  });
+
+  r.post(
+    '/',
+    bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.text('Payload too large', 413) }),
+    async (c) => {
+      const raw = await c.req.text();
+      if (!verifySignature(raw, c.req.header('x-hub-signature-256'), opts.appSecret)) {
+        opts.log('whatsapp_bad_signature', {}, 'warn');
+        return c.text('Unauthorized', 401);
+      }
+      let json: unknown;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        return c.text('Bad Request', 400);
+      }
+      channel.receive(json);
+      return c.text('OK', 200);
+    },
+  );
+  return r;
 }

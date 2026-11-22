@@ -100,17 +100,21 @@ function claimBlock(
 
   const evidence = claim.evidenceIds.flatMap((id) => byId.get(id) ?? []);
   // Te same publikacje i ta sama kolejność co w WWW: fragmenty jednej strony to jedno źródło.
-  // Materiały kontekstowe zostają w pełnym wyniku. Bez podstawy pokazujemy pierwszy materiał.
+  // Materiały kontekstowe i inne materiały na ten temat zostają w pełnym wyniku. Materiał
+  // kontekstowy nie udaje źródła rozstrzygnięcia: bez podstawy mówimy wprost, że nic tego
+  // nie rozstrzyga.
   const groups = groupBySource(evidence, claim.evidenceUse);
-  const basis = groups.filter((g) => g.basis);
-  const shown = basis.length > 0 ? basis.slice(0, MAX_SOURCES_PER_CLAIM) : groups.slice(0, 1);
-  if (shown.length > 0) {
-    for (const g of shown) lines.push('', evidenceBlock(g));
-    const rest = groups.length - shown.length;
-    if (rest > 0) lines.push(`Pozostałe źródła (${rest}) w pełnym wyniku.`);
-  } else {
-    lines.push('Nie znaleźliśmy źródeł na ten temat.');
+  const shown = groups.filter((g) => g.basis).slice(0, MAX_SOURCES_PER_CLAIM);
+  for (const g of shown) lines.push('', evidenceBlock(g));
+  const rest = groups.length - shown.length + (claim.relatedIds?.length ?? 0);
+  if (shown.length === 0 && claim.verdict !== 'nie podlega weryfikacji') {
+    lines.push(
+      rest > 0
+        ? 'Żadne ze znalezionych źródeł tego nie rozstrzyga.'
+        : 'Nie znaleźliśmy źródeł na ten temat.',
+    );
   }
+  if (rest > 0) lines.push(`Pozostałe materiały (${rest}) w pełnym wyniku.`);
   if (claim.verdict === 'brak wystarczających dowodów') {
     lines.push('Nie udostępniaj tej informacji dalej jako pewnej.');
   }

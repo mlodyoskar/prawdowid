@@ -8,7 +8,7 @@ import type { CheckJob, CheckRequest, CheckResponse } from '@prawdowid/contracts
 import { createApp } from './app.ts';
 import { JobRunner, SqliteJobStore, type RunCheck } from './jobs.ts';
 import { isReusable, reuseKey } from './reuse.ts';
-import { WhatsAppChannel } from './whatsapp/webhook.ts';
+import { WhatsAppChannel, metaWebhookRoutes } from './whatsapp/webhook.ts';
 
 const SECRET = 'secret';
 const URLS = ['https://www.gov.pl/a', 'https://www.gov.pl/b', 'https://www.gov.pl/c'];
@@ -86,14 +86,12 @@ function setup(reuse = true) {
     ...(reuse ? { reuse: { key: (i) => reuseKey(i, 'test'), ttlMs: 3600_000, isReusable } } : {}),
   });
   channel = new WhatsAppChannel({
-    appSecret: SECRET,
-    verifyToken: 'v',
     webOrigin: 'https://prawdowid.example',
     llmConfigured: true,
     ratePerMinute: 100,
     log: () => {},
     runner,
-    graph: {
+    transport: {
       sendText: async (_to, body) => {
         replies.push(body);
         return { ok: true, value: undefined };
@@ -111,7 +109,7 @@ function setup(reuse = true) {
     health: () => ({ factchecks: false, corpusDocuments: 1 }),
     store,
     runner,
-    whatsapp: channel,
+    whatsapp: metaWebhookRoutes(channel, { appSecret: SECRET, verifyToken: 'v', log: () => {} }),
   });
   return { app, channel, replies, agent };
 }

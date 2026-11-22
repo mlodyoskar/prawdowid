@@ -1,5 +1,9 @@
 import {
   ESCALATION_MESSAGE,
+  groupBySource,
+  resultUrl,
+  sourceQuotes,
+  type SourceGroup,
   type CaseEscalation,
   type CheckResponse,
   type ClaimResult,
@@ -29,7 +33,7 @@ const ERROR_TITLE: Record<ErrorCode, string> = {
 
 const NOT_A_VERDICT = 'To nie jest werdykt.';
 
-/** Źródła-podstawy na twierdzenie w wiadomości. Więcej mieści się w limicie znaków rzadko. */
+/** Publikacje-podstawy na twierdzenie w wiadomości. Więcej mieści się w limicie znaków rzadko. */
 const MAX_SOURCES_PER_CLAIM = 3;
 
 const dateFmt = new Intl.DateTimeFormat('pl-PL', {
@@ -54,20 +58,20 @@ function isWebUrl(url: string): boolean {
   }
 }
 
-export function resultUrl(webOrigin: string, checkId: string): string {
-  return `${webOrigin.replace(/\/+$/, '')}/?check=${encodeURIComponent(checkId)}`;
-}
-
 function truncate(text: string, max: number): string {
   const t = text.trim();
   return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
 }
 
-function evidenceBlock(e: Evidence, quote: string | undefined): string {
+function evidenceBlock(group: SourceGroup): string {
+  const e = group.evidence;
   const meta = [e.publisher, formatDate(e.publishedAt)].filter(Boolean).join(', ');
   const lines = [`Źródło: ${truncate(e.title, 160)}${meta ? ` (${meta})` : ''}`];
-  if (e.rating) lines.push(`Ocena fact-checkera: ${e.rating}`);
-  if (quote) lines.push(`„${truncate(quote, 300)}”`);
+  const rating = group.fragments.find((f) => f.evidence.rating)?.evidence.rating;
+  if (rating) lines.push(`Ocena fact-checkera: ${rating}`);
+  // Jeden cytat na publikację: kolejne fragmenty tej samej strony są w pełnym wyniku.
+  const [quote] = sourceQuotes(group);
+  if (quote) lines.push(`„${truncate(quote.text, 300)}”`);
   if (isWebUrl(e.url)) lines.push(e.url);
   return lines.join('\n');
 }
@@ -89,17 +93,20 @@ function claimBlock(
     lines.push('Źródła podają rozbieżne informacje. Nie rozstrzygamy, które ma rację.');
   }
   const unknowns = claim.unknowns ?? [];
-  if (unknowns.length > 0) lines.push(`Nie ustaliliśmy: ${truncate(unknowns.join('; '), 300)}`);
+  if (unknowns.length > 0) {
+    const list = unknowns.map((u) => u.trim().replace(/[.;\s]+$/, '')).join('; ');
+    lines.push(`Nie ustaliliśmy: ${truncate(list, 300)}`);
+  }
 
   const evidence = claim.evidenceIds.flatMap((id) => byId.get(id) ?? []);
-  const useOf = (e: Evidence) => claim.evidenceUse?.find((u) => u.id === e.id);
-  // Te same publikacje, na których WWW opiera werdykt, w tej samej kolejności. Materiały
-  // kontekstowe zostają w pełnym wyniku. Bez podstawy pokazujemy pierwszy materiał.
-  const basis = evidence.filter((e) => useOf(e)?.stance !== 'context');
-  const shown = basis.length > 0 ? basis.slice(0, MAX_SOURCES_PER_CLAIM) : evidence.slice(0, 1);
+  // Te same publikacje i ta sama kolejność co w WWW: fragmenty jednej strony to jedno źródło.
+  // Materiały kontekstowe zostają w pełnym wyniku. Bez podstawy pokazujemy pierwszy materiał.
+  const groups = groupBySource(evidence, claim.evidenceUse);
+  const basis = groups.filter((g) => g.basis);
+  const shown = basis.length > 0 ? basis.slice(0, MAX_SOURCES_PER_CLAIM) : groups.slice(0, 1);
   if (shown.length > 0) {
-    for (const e of shown) lines.push('', evidenceBlock(e, useOf(e)?.quote));
-    const rest = evidence.length - shown.length;
+    for (const g of shown) lines.push('', evidenceBlock(g));
+    const rest = groups.length - shown.length;
     if (rest > 0) lines.push(`Pozostałe źródła (${rest}) w pełnym wyniku.`);
   } else {
     lines.push('Nie znaleźliśmy źródeł na ten temat.');

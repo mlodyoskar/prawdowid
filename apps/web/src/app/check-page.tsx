@@ -10,7 +10,6 @@ import {
   Field,
   ICON_STROKE,
   Notice,
-  Steps,
   Textarea,
 } from '@/ui';
 
@@ -22,11 +21,15 @@ import { readCheckParam, useCheck, type CheckState } from './use-check.ts';
 const SOURCES_LINE =
   'komunikaty rządu i ministerstw (gov.pl) · MSZ Odyseusz · RCB · Regionalny System Ostrzegania · CERT Polska · Policja';
 
+/** Read out by screen readers when the stage changes; the button shows only the time. */
 const STEPS = [
   'Wysyłamy wiadomość',
   'Czekamy na swoją kolej',
   'Szukamy w źródłach urzędowych i serwisach fact-checkingowych',
 ] as const;
+
+/** A check usually ends within this; past it the button says it takes longer than usual. */
+const USUAL_SECONDS = 30;
 
 function currentStep(state: CheckState): number {
   if (state.phase === 'waiting') return state.jobState === 'queued' ? 1 : 2;
@@ -55,9 +58,32 @@ export function CheckPage() {
     if (focusTick > 0) textareaRef.current?.focus();
   }, [focusTick]);
 
-  const announcement = busy ? `${STEPS[currentStep(state)]}…` : confirmation;
+  // Seconds since the check started: shown on the button so a long wait never looks frozen.
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!busy) return undefined;
+    const started = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => {
+      clearInterval(timer);
+      setElapsed(0);
+    };
+  }, [busy]);
+  const slow = elapsed > USUAL_SECONDS;
+  const queued = state.phase === 'waiting' && state.jobState === 'queued';
+  const waitingHint = slow
+    ? 'Trwa dłużej niż zwykle, wciąż szukamy.'
+    : queued
+      ? 'Czekamy w kolejce, zaraz zaczniemy.'
+      : 'Szukamy w źródłach, zwykle do 30 sekund.';
 
-  // A shared link (?check=…) opens that check's result.
+  const announcement = busy
+    ? slow
+      ? 'To trwa dłużej niż zwykle. Wciąż szukamy.'
+      : `${STEPS[currentStep(state)]}…`
+    : confirmation;
+
+  // A shared link (/w/<id>) opens that check's result.
   useEffect(() => {
     const checkId = readCheckParam();
     if (checkId) void open(checkId);
@@ -105,6 +131,7 @@ export function CheckPage() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     const parsed = CheckRequest.safeParse({
       text: text.trim() || undefined,
       image: image?.input,
@@ -245,39 +272,53 @@ export function CheckPage() {
           </div>
 
           <div className="flex flex-col gap-3">
-            <Button type="submit" disabled={busy} className="w-full sm:w-auto sm:self-start">
+            {/* While checking, the button itself is the progress, right where the user tapped. */}
+            <Button
+              type="submit"
+              aria-disabled={busy || undefined}
+              className={
+                busy
+                  ? 'w-full cursor-wait sm:w-auto sm:self-start'
+                  : 'w-full sm:w-auto sm:self-start'
+              }
+            >
               {busy ? (
-                <LoaderCircle
-                  strokeWidth={ICON_STROKE}
-                  className="motion-safe:animate-spin"
-                  aria-hidden="true"
-                />
-              ) : null}
-              {busy ? 'Sprawdzamy…' : 'Sprawdź'}
+                <>
+                  <LoaderCircle
+                    strokeWidth={ICON_STROKE}
+                    className="motion-safe:animate-spin"
+                    aria-hidden="true"
+                  />
+                  {slow ? 'Jeszcze chwilę…' : 'Sprawdzamy…'}
+                  <span className="normal-case tabular-nums">{elapsed} s</span>
+                </>
+              ) : (
+                'Sprawdź'
+              )}
             </Button>
-            <p className="m-0 text-caption text-ink-muted">
-              Bezpłatnie i bez logowania. Dane osobowe usuwamy z wiadomości przed sprawdzeniem.{' '}
-              <a className="pw-link" href="#jak-dzialamy">
-                Jak to działa
-              </a>
-            </p>
+            {busy ? (
+              <div className="flex flex-wrap items-center justify-between gap-x-4 text-caption text-ink-muted">
+                <span>{waitingHint}</span>
+                <Button
+                  type="button"
+                  variant="text"
+                  size="sm"
+                  className="px-0"
+                  onClick={cancelCheck}
+                >
+                  Anuluj
+                </Button>
+              </div>
+            ) : (
+              <p className="m-0 text-caption text-ink-muted">
+                Bezpłatnie i bez logowania. Dane osobowe usuwamy z wiadomości przed sprawdzeniem.{' '}
+                <a className="pw-link" href="#jak-dzialamy">
+                  Jak to działa
+                </a>
+              </p>
+            )}
           </div>
         </form>
-
-        {busy ? (
-          <section
-            aria-labelledby="progress-title"
-            className="flex flex-col gap-4 border-t border-line-soft pt-8"
-          >
-            <h2 id="progress-title" className="m-0 text-title-2">
-              Sprawdzamy – to potrwa do 30 sekund
-            </h2>
-            <Steps label="Postęp sprawdzania" steps={STEPS} current={currentStep(state)} />
-            <Button variant="text" className="self-start" onClick={cancelCheck}>
-              Anuluj sprawdzanie
-            </Button>
-          </section>
-        ) : null}
 
         {settled ? (
           <section

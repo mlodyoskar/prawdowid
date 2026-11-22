@@ -1,5 +1,8 @@
 import {
   ESCALATION_MESSAGE,
+  countSources,
+  groupBySource,
+  resultUrl,
   type CaseEscalation,
   type CheckResponse,
   type ClaimResult,
@@ -57,11 +60,14 @@ const ERROR_TITLE: Record<ErrorCode, string> = {
 };
 
 function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evidence[] }) {
-  const [first, ...rest] = evidence;
+  // Fragments of one page are one source: the same grouping and order as on WhatsApp.
+  const [first, ...rest] = groupBySource(evidence, claim.evidenceUse);
   const insufficient = claim.verdict === 'brak wystarczających dowodów';
   const unknowns = claim.unknowns ?? [];
   const hasLimitations = claim.limitations.trim().length > 0 || unknowns.length > 0;
-  const useOf = (e: Evidence) => claim.evidenceUse?.find((u) => u.id === e.id);
+  const groups = first ? [first, ...rest] : [];
+  const basis = groups.filter((g) => g.basis).length;
+  const context = groups.length - basis;
 
   return (
     <>
@@ -70,15 +76,15 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
           <p>Porównaj je poniżej. Nie rozstrzygamy, które ma rację.</p>
         </Notice>
       ) : null}
-      {first ? <EvidenceSource evidence={first} use={useOf(first)} /> : null}
+      {first ? <EvidenceSource group={first} /> : null}
       {rest.length > 0 || hasLimitations ? (
         <Accordion type="multiple" defaultValue={insufficient ? ['limitations'] : []}>
           {rest.length > 0 ? (
             <AccordionItem value="sources">
               <AccordionTrigger>Pokaż pozostałe źródła ({rest.length})</AccordionTrigger>
               <AccordionContent className="flex flex-col gap-4">
-                {rest.map((e, i) => (
-                  <EvidenceSource key={`${i}-${e.id}`} evidence={e} use={useOf(e)} />
+                {rest.map((g, i) => (
+                  <EvidenceSource key={`${i}-${g.evidence.id}`} group={g} />
                 ))}
               </AccordionContent>
             </AccordionItem>
@@ -101,9 +107,12 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
         </Accordion>
       ) : null}
       <p className="m-0 text-caption text-ink-muted">
-        {evidence.length > 0
-          ? `Na podstawie: ${count(evidence.length, SOURCE_FORMS)}`
-          : 'Nie znaleźliśmy źródeł na ten temat.'}
+        {groups.length === 0
+          ? 'Nie znaleźliśmy źródeł na ten temat.'
+          : basis > 0
+            ? `Na podstawie: ${count(basis, SOURCE_FORMS)}.`
+            : `Znalezione materiały (${context}) tylko uzupełniają kontekst.`}
+        {basis > 0 && context > 0 ? ` Dodatkowy kontekst: ${context}.` : null}
         {insufficient ? ' Nie udostępniaj tej informacji dalej jako pewnej.' : null}
       </p>
     </>
@@ -191,8 +200,10 @@ const EXPORTS: ReadonlyArray<{ format: ExportFormat; label: string }> = [
   { format: 'stix', label: 'STIX 2.1 (OpenCTI)' },
 ];
 
-function download(format: ExportFormat, result: OkResult) {
-  const file = exportFile(format, result, { resultUrl: window.location.href });
+function download(format: ExportFormat, result: OkResult, checkId: string) {
+  const file = exportFile(format, result, {
+    resultUrl: resultUrl(window.location.origin, checkId),
+  });
   const url = URL.createObjectURL(new Blob([file.content], { type: file.mimeType }));
   const link = document.createElement('a');
   link.href = url;
@@ -202,7 +213,7 @@ function download(format: ExportFormat, result: OkResult) {
 }
 
 /** Web-only: the WhatsApp channel has no export. Files are built in the browser from the shown result. */
-function ExportSection({ result }: { result: OkResult }) {
+function ExportSection({ result, checkId }: { result: OkResult; checkId: string }) {
   return (
     <div className="flex flex-col gap-2">
       <Eyebrow>Pobierz dane</Eyebrow>
@@ -212,7 +223,12 @@ function ExportSection({ result }: { result: OkResult }) {
       </p>
       <div className="flex flex-wrap gap-2">
         {EXPORTS.map(({ format, label }) => (
-          <Button key={format} variant="tool" size="sm" onClick={() => download(format, result)}>
+          <Button
+            key={format}
+            variant="tool"
+            size="sm"
+            onClick={() => download(format, result, checkId)}
+          >
             <Download strokeWidth={ICON_STROKE} aria-hidden="true" />
             {label}
           </Button>
@@ -237,7 +253,8 @@ export function CheckResult({
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      // Built from the id, not the address bar, which may carry an #anchor.
+      await navigator.clipboard.writeText(resultUrl(window.location.origin, checkId));
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
@@ -305,13 +322,16 @@ export function CheckResult({
         ) : null}
       </div>
 
-      {result.status === 'ok' ? <ExportSection result={result} /> : null}
+      {result.status === 'ok' ? <ExportSection result={result} checkId={checkId} /> : null}
 
       <div className="flex flex-col gap-1">
         <Eyebrow>Zapis sprawdzenia</Eyebrow>
         <p className="m-0 text-caption text-ink-muted">
           Nr {checkId} · {formatDateTime(result.createdAt)}
-          {result.status === 'ok' ? ` · ${count(result.evidence.length, SOURCE_FORMS)}` : null}.
+          {result.status === 'ok'
+            ? ` · ${count(countSources(result.evidence), SOURCE_FORMS)}`
+            : null}
+          .
           {result.status === 'ok' && result.reusedFrom
             ? ` To samo zgłoszenie sprawdziliśmy ${formatDateTime(result.reusedFrom.createdAt)}: pokazujemy tamten wynik, żeby odpowiedź była taka sama w każdym kanale.`
             : null}{' '}

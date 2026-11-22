@@ -232,3 +232,37 @@ export const CheckJob = z.object({
   escalation: CaseEscalation.optional(),
 });
 export type CheckJob = z.infer<typeof CheckJob>;
+
+/**
+ * Publiczny adres wyniku: `<origin>/w/<checkId>`. Ten sam w WWW (kopiuj link, eksport)
+ * i w drugim kanale. `checkId` jest krótkim losowym kodem, więc link mieści się w SMS-ie.
+ */
+export const RESULT_PATH_PREFIX = '/w/';
+
+export function resultUrl(origin: string, checkId: string): string {
+  return `${origin.replace(/\/+$/, '')}${RESULT_PATH_PREFIX}${encodeURIComponent(checkId)}`;
+}
+
+/** Id sprawdzenia z adresu strony: `/w/<id>` albo starszy `?check=<id>`. */
+export function checkIdFromLocation(pathname: string, search: string): string | null {
+  if (pathname.startsWith(RESULT_PATH_PREFIX)) {
+    const raw = pathname.slice(RESULT_PATH_PREFIX.length).replace(/\/+$/, '');
+    if (raw && !raw.includes('/')) {
+      try {
+        return decodeURIComponent(raw);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+  return new URLSearchParams(search).get('check');
+}
+
+export {
+  countSources,
+  groupBySource,
+  sourceQuotes,
+  type SourceFragment,
+  type SourceGroup,
+} from './sources.ts';

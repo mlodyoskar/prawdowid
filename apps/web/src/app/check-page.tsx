@@ -70,6 +70,12 @@ export function CheckPage() {
     };
   }, [busy]);
   const slow = elapsed > USUAL_SECONDS;
+  const queued = state.phase === 'waiting' && state.jobState === 'queued';
+  const waitingHint = slow
+    ? 'Trwa dłużej niż zwykle, wciąż szukamy.'
+    : queued
+      ? 'Czekamy w kolejce, zaraz zaczniemy.'
+      : 'Szukamy w źródłach, zwykle do 30 sekund.';
 
   const announcement = busy
     ? slow
@@ -207,68 +213,66 @@ export function CheckPage() {
             />
           </Field>
 
-          {busy && !image ? null : (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              {image ? (
-                <div className="flex min-w-0 items-center gap-3">
-                  <img
-                    src={image.previewUrl}
-                    alt=""
-                    className="size-16 shrink-0 rounded-sm border border-line object-cover"
-                  />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate font-semibold">{image.name}</span>
-                    <span className="text-caption text-ink-muted">Dołączone zdjęcie</span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="text"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => setImage(null)}
-                  >
-                    <X strokeWidth={ICON_STROKE} aria-hidden="true" />
-                    Usuń zdjęcie
-                  </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {image ? (
+              <div className="flex min-w-0 items-center gap-3">
+                <img
+                  src={image.previewUrl}
+                  alt=""
+                  className="size-16 shrink-0 rounded-sm border border-line object-cover"
+                />
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate font-semibold">{image.name}</span>
+                  <span className="text-caption text-ink-muted">Dołączone zdjęcie</span>
                 </div>
-              ) : (
-                <div className="flex flex-col items-start gap-2">
-                  <Button
-                    type="button"
-                    variant="tool"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => fileRef.current?.click()}
-                  >
-                    <ImagePlus strokeWidth={ICON_STROKE} aria-hidden="true" />
-                    Dodaj zdjęcie lub zrzut ekranu
-                  </Button>
-                  <span className="text-caption text-ink-muted">
-                    Gazeta, plakat, ekran telefonu. Odczytamy tekst za Ciebie.
-                  </span>
-                </div>
-              )}
-              <span className="text-caption text-ink-muted" aria-live="off">
-                {text.length} / {MAX_TEXT_LENGTH} znaków
-              </span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept={IMAGE_ACCEPT}
-                className="sr-only"
-                tabIndex={-1}
-                aria-hidden="true"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (file) void attach(file);
-                }}
-              />
-            </div>
-          )}
+                <Button
+                  type="button"
+                  variant="text"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => setImage(null)}
+                >
+                  <X strokeWidth={ICON_STROKE} aria-hidden="true" />
+                  Usuń zdjęcie
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-start gap-2">
+                <Button
+                  type="button"
+                  variant="tool"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <ImagePlus strokeWidth={ICON_STROKE} aria-hidden="true" />
+                  Dodaj zdjęcie lub zrzut ekranu
+                </Button>
+                <span className="text-caption text-ink-muted">
+                  Gazeta, plakat, ekran telefonu. Odczytamy tekst za Ciebie.
+                </span>
+              </div>
+            )}
+            <span className="text-caption text-ink-muted" aria-live="off">
+              {text.length} / {MAX_TEXT_LENGTH} znaków
+            </span>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={IMAGE_ACCEPT}
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) void attach(file);
+              }}
+            />
+          </div>
 
           <div className="flex flex-col gap-3">
-            {/* While checking, the button itself is the progress: it stays where the user tapped. */}
+            {/* While checking, the button itself is the progress, right where the user tapped. */}
             <Button
               type="submit"
               aria-disabled={busy || undefined}
@@ -294,10 +298,14 @@ export function CheckPage() {
             </Button>
             {busy ? (
               <div className="flex flex-wrap items-center justify-between gap-x-4 text-caption text-ink-muted">
-                <span>
-                  {slow ? 'Trwa dłużej niż zwykle, wciąż szukamy.' : 'Zwykle do 30 sekund.'}
-                </span>
-                <Button variant="text" size="sm" className="px-0" onClick={cancelCheck}>
+                <span>{waitingHint}</span>
+                <Button
+                  type="button"
+                  variant="text"
+                  size="sm"
+                  className="px-0"
+                  onClick={cancelCheck}
+                >
                   Anuluj
                 </Button>
               </div>

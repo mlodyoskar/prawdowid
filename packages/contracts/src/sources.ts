@@ -11,7 +11,7 @@ export type SourceGroup = {
   /** The first fragment: its title, publisher, dates and link describe the whole page. */
   evidence: Evidence;
   fragments: SourceFragment[];
-  /** Roles of the fragments, strongest first. `context` only when no fragment is a basis. */
+  /** Roles of the fragments, strongest first (`refutes`, `supports`, `context`). */
   stances: Stance[];
   /** False when every fragment only adds context: the verdict does not rest on this page. */
   basis: boolean;
@@ -33,7 +33,8 @@ const normalize = (text: string) =>
     .trim();
 
 /**
- * Quotes worth showing for a source, in order: the judge's quote, else `fallback(fragment)`.
+ * Quotes worth showing for a source: the judge's quote, else `fallback(fragment)`. Fragments
+ * the verdict rests on come before context-only ones, so a single quote (WhatsApp) is evidence.
  * Drops a quote that only repeats the page title or another quote, since it shows nothing new.
  */
 export function sourceQuotes(
@@ -42,15 +43,28 @@ export function sourceQuotes(
 ): { text: string; fragment: SourceFragment }[] {
   const title = normalize(group.evidence.title);
   const out: { text: string; fragment: SourceFragment; key: string }[] = [];
-  for (const fragment of group.fragments) {
+  const isContext = (f: SourceFragment) => f.use?.stance === 'context';
+  const ordered = [
+    ...group.fragments.filter((f) => !isContext(f)),
+    ...group.fragments.filter(isContext),
+  ];
+  for (const fragment of ordered) {
     const text = (fragment.use?.quote || fallback(fragment) || '').trim();
     const key = normalize(text);
     if (!key || key === title) continue;
     if (out.some((q) => q.key.includes(key))) continue;
-    // A longer quote replaces a shorter one it contains.
-    const shorter = out.findIndex((q) => key.includes(q.key));
-    if (shorter >= 0) out.splice(shorter, 1);
-    out.push({ text, fragment, key });
+    // A longer quote replaces the shorter ones it contains, in the place of the first of them.
+    const at = out.findIndex((q) => key.includes(q.key));
+    const entry = { text, fragment, key };
+    if (at < 0) out.push(entry);
+    else
+      out.splice(
+        0,
+        out.length,
+        ...out.slice(0, at),
+        entry,
+        ...out.slice(at + 1).filter((q) => !key.includes(q.key)),
+      );
   }
   return out.map(({ text, fragment }) => ({ text, fragment }));
 }
@@ -77,7 +91,6 @@ export function groupBySource(
   for (const g of all) {
     const stances = new Set(g.fragments.flatMap((f) => (f.use ? [f.use.stance] : [])));
     g.basis = stances.size === 0 || [...stances].some((s) => s !== 'context');
-    if (g.basis) stances.delete('context');
     g.stances = STANCE_ORDER.filter((s) => stances.has(s));
   }
   return [...all.filter((g) => g.basis), ...all.filter((g) => !g.basis)];

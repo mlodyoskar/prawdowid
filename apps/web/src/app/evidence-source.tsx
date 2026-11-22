@@ -44,8 +44,12 @@ export function EvidenceSource({ group }: { group: SourceGroup }) {
   const quotes = sourceQuotes(group, (f) => stripMarkers(f.evidence.excerpt));
   const visible = expanded ? quotes : quotes.slice(0, VISIBLE_QUOTES);
   const hidden = quotes.length - visible.length;
-  // One label for the card, unless fragments of this page play different roles.
-  const mixed = group.stances.length > 1;
+  // One label for the card, unless the shown quotes play different roles
+  // (e.g. one confirms the claim and another only adds context).
+  const roles = new Set(quotes.flatMap((q) => (q.fragment.use ? [q.fragment.use.stance] : [])));
+  const mixed = roles.size > 1;
+  const cardRole =
+    roles.size === 1 ? [...roles][0] : quotes.length === 0 ? group.stances[0] : undefined;
   const rating = group.fragments.find((f) => f.evidence.rating)?.evidence.rating;
 
   const web = isWebUrl(e.url);
@@ -60,7 +64,7 @@ export function EvidenceSource({ group }: { group: SourceGroup }) {
     .filter(Boolean)
     .join(' · ');
 
-  const stance = !mixed && group.stances[0] ? STANCE_LABEL[group.stances[0]] : null;
+  const stance = cardRole ? STANCE_LABEL[cardRole] : null;
   const fragments =
     quotes.length > 1 ? count(quotes.length, FRAGMENT_FORMS) + ' z tej strony' : null;
 
@@ -99,7 +103,13 @@ export function EvidenceSource({ group }: { group: SourceGroup }) {
               <span className="font-bold">{[stance, fragments].filter(Boolean).join(' · ')}</span>
             ) : null}
             {hidden > 0 ? (
-              <Button variant="text" size="sm" className="px-0" onClick={() => setExpanded(true)}>
+              <Button
+                type="button"
+                variant="text"
+                size="sm"
+                className="px-0"
+                onClick={() => setExpanded(true)}
+              >
                 Pokaż jeszcze {count(hidden, FRAGMENT_FORMS)}
               </Button>
             ) : null}

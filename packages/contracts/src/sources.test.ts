@@ -31,7 +31,8 @@ test('grupuje fragmenty jednej strony, kontekst na końcu, kotwica RSO to osobny
     groups.map((g) => g.fragments.map((f) => f.evidence.id)),
     [['a', 'b'], ['r1'], ['r2'], ['c']],
   );
-  assert.deepEqual(groups[0]?.stances, ['supports'], 'kontekst nie osłabia podstawy');
+  assert.deepEqual(groups[0]?.stances, ['supports', 'context']);
+  assert.equal(groups[0]?.basis, true, 'kontekst nie osłabia podstawy');
   assert.equal(groups.at(-1)?.basis, false);
   assert.equal(countSources(evidence), 4);
 });
@@ -71,5 +72,20 @@ test('cytaty: bez tytułu, bez powtórzeń, dłuższy zastępuje krótszy', () =
     ),
     ['fragment x'],
     'bez cytatu sędziego: fragment ze źródła',
+  );
+});
+
+test('cytat-dowód przed cytatem kontekstowym z tej samej strony', () => {
+  const [g] = groupBySource(
+    [ev('a', 'https://x.pl/k'), ev('b', 'https://x.pl/k')],
+    [
+      { id: 'a', stance: 'context', quote: 'tło sprawy' },
+      { id: 'b', stance: 'refutes', quote: 'GIS nie wydał takiego ostrzeżenia' },
+    ],
+  );
+  assert.ok(g);
+  assert.deepEqual(
+    sourceQuotes(g).map((q) => q.text),
+    ['GIS nie wydał takiego ostrzeżenia', 'tło sprawy'],
   );
 });

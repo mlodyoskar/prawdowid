@@ -20,7 +20,7 @@ import { SiteFooter } from './site-footer.tsx';
 import { readCheckParam, useCheck, type CheckState } from './use-check.ts';
 
 const SOURCES_LINE =
-  'gov.pl i BIP · ISAP · EUR-Lex · dane.gov.pl · organizacje fact-checkingowe zgodne z IFCN i EFCSN · EUvsDisinfo';
+  'komunikaty rządu i ministerstw (gov.pl) · MSZ Odyseusz · RCB · Regionalny System Ostrzegania · CERT Polska · Policja';
 
 const STEPS = [
   'Wysyłamy wiadomość',
@@ -155,20 +155,16 @@ export function CheckPage() {
       ? () => run(lastRequest)
       : undefined;
 
-  const hint =
-    'Możesz też wkleić zrzut ekranu (Ctrl+V) albo dodać zdjęcie gazety, plakatu lub ekranu – odczytamy z niego tekst.';
-
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
       <AppHeader />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-4 py-8 sm:px-6 sm:py-12">
         <div className="flex flex-col gap-2">
-          <h1 className="m-0 text-display">Sprawdź, zanim udostępnisz</h1>
-          <p className="m-0 text-body-lg text-ink-muted">
-            Wklej wiadomość, link albo dodaj zdjęcie. Pokażemy, co mówią źródła urzędowe i
-            zweryfikowane serwisy.
-          </p>
+          <h1 className="m-0 text-display">
+            Brzmi podejrzanie? Sprawdź, zanim uwierzysz.
+          </h1>
+          <p className="m-0 text-body-lg text-ink-muted">Dostaniesz jasną odpowiedź i dowody.</p>
         </div>
 
         <form
@@ -177,7 +173,11 @@ export function CheckPage() {
           aria-busy={busy}
           className="flex flex-col gap-6 rounded-sm bg-surface-alt p-4 sm:p-6"
         >
-          <Field id="claim" label="Co chcesz sprawdzić?" hint={hint} error={formError}>
+          <Field
+            id="claim"
+            label="Wklej wiadomość lub link, albo dodaj zdjęcie"
+            error={formError}
+          >
             <Textarea
               ref={textareaRef}
               id="claim"
@@ -186,7 +186,7 @@ export function CheckPage() {
               disabled={busy}
               placeholder="Np. „Od grudnia wraca obowiązkowy pobór do wojska”"
               aria-invalid={formError ? true : undefined}
-              aria-describedby={describedBy('claim', { hint: true, error: Boolean(formError) })}
+              aria-describedby={describedBy('claim', { error: Boolean(formError) })}
               onChange={(e) => setText(e.target.value)}
               onPaste={onPaste}
             />
@@ -216,16 +216,21 @@ export function CheckPage() {
                 </Button>
               </div>
             ) : (
-              <Button
-                type="button"
-                variant="tool"
-                size="sm"
-                disabled={busy}
-                onClick={() => fileRef.current?.click()}
-              >
-                <ImagePlus strokeWidth={ICON_STROKE} aria-hidden="true" />
-                Dodaj zdjęcie lub zrzut ekranu
-              </Button>
+              <div className="flex flex-col items-start gap-2">
+                <Button
+                  type="button"
+                  variant="tool"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <ImagePlus strokeWidth={ICON_STROKE} aria-hidden="true" />
+                  Dodaj zdjęcie lub zrzut ekranu
+                </Button>
+                <span className="text-caption text-ink-muted">
+                  Gazeta, plakat, ekran telefonu. Odczytamy tekst za Ciebie.
+                </span>
+              </div>
             )}
             <span className="text-caption text-ink-muted" aria-live="off">
               {text.length} / {MAX_TEXT_LENGTH} znaków
@@ -257,10 +262,9 @@ export function CheckPage() {
               {busy ? 'Sprawdzamy…' : 'Sprawdź'}
             </Button>
             <p className="m-0 text-caption text-ink-muted">
-              Bezpłatnie. Nie zapisujemy Twoich danych osobowych – usuwamy je automatycznie przed
-              sprawdzeniem.{' '}
+              Bezpłatnie i bez logowania. Dane osobowe usuwamy z wiadomości przed sprawdzeniem.{' '}
               <a className="pw-link" href="#jak-dzialamy">
-                Jak działamy
+                Jak to działa
               </a>
             </p>
           </div>
@@ -326,22 +330,24 @@ export function CheckPage() {
           className="flex scroll-mt-6 flex-col gap-4 border-t border-line-soft pt-8"
         >
           <h2 id="how-title" className="m-0 text-title-2">
-            Jak działamy
+            Jak to działa
           </h2>
-          <ul className="m-0 flex list-disc flex-col gap-2 pl-5 text-body">
+          <ol className="m-0 flex list-decimal flex-col gap-3 pl-5 text-body">
             <li>
-              Dzielimy wiadomość na twierdzenia i każde sprawdzamy osobno w jawnym katalogu źródeł.
+              <strong>Rozkładamy wiadomość na części.</strong> Każde twierdzenie sprawdzamy osobno.
             </li>
             <li>
-              Werdykt podajemy tylko wtedy, gdy mamy dowody. Każdy dowód możesz otworzyć i
-              przeczytać.
+              <strong>Szukamy w oficjalnych źródłach.</strong> Komunikaty rządu i ministerstw,
+              ostrzeżenia służb i informacje MSZ dla podróżujących.
             </li>
             <li>
-              Gdy dowodów brakuje, mówimy to wprost: „Brak wystarczających dowodów” to nie jest
-              werdykt „fałsz”.
+              <strong>Pokazujemy dowody.</strong> Każde źródło możesz otworzyć i przeczytać.
             </li>
-            <li>Awaria lub przekroczony limit to nigdy ocena Twojej wiadomości.</li>
-          </ul>
+          </ol>
+          <p className="m-0 text-body">
+            <strong>Nie zgadujemy.</strong> Gdy dowodów jest za mało, mówimy to wprost, zamiast
+            oceniać na siłę.
+          </p>
           <div className="flex flex-col gap-1">
             <Eyebrow>Gdzie szukamy</Eyebrow>
             <p className="m-0 text-caption text-ink-muted">{SOURCES_LINE}</p>

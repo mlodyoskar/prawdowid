@@ -12,6 +12,8 @@ Przypadki z etykietami są w [evals/cases.jsonl](../evals/cases.jsonl): część
 
 Przykłady z [docs/challenge/zadania.md](challenge/zadania.md) nie trafiają do promptu ani korpusu.
 
+**Strojenie na przypadkach odłożonych.** Poprawka promptu z 22.11 (zasady o skrócie, o przedstawianiu starego zdarzenia jako bieżącego i o porównywaniu liczb, które liczą to samo) powstała po analizie błędów w przypadkach B7 i D5 z części odłożonej oraz E4 i A14. Zasady są ogólne i nie zawierają treści tych przypadków, ale B7 i D5 nie są już niezależną próbą: wynik części odłożonej po tej zmianie jest zawyżony o ich wpływ.
+
 ## Odtworzenie
 
 Node 26 i pnpm 10. Ustaw `OPENROUTER_API_KEY` w lokalnym `.env` oraz stawki modelu w USD za milion tokenów (z katalogu OpenRouter), żeby raport policzył koszt. Klucz Google jest zbędny: wyszukiwania Fact Check są odtwarzane z nagrania.
@@ -54,9 +56,9 @@ node evals/report.mjs <pliki przebiegu>
 
 Wnioski z analizy wywołań w PR #7, #9 i #11. Ślady i oceny do sprawdzenia są w [evals/diagnostics](../evals/diagnostics/).
 
-- **Granica „fałszywe” / „wprowadzające w błąd” (B, F).** Od PR #11 sędzia widzi całą wiadomość użytkownika i ma definicje werdyktów oparte na rdzeniu wiadomości, więc stary materiał podany jako dzisiejszy nie kończy się już wstrzymaniem. Przy takim materiale (B3, F3, B7) werdykt wciąż przeskakuje między „fałszywe” a „wprowadzające w błąd”.
+- **Granica „fałszywe” / „wprowadzające w błąd” (B, F).** Od PR #11 sędzia widzi całą wiadomość użytkownika i ma definicje werdyktów oparte na rdzeniu wiadomości, więc stary materiał podany jako dzisiejszy nie kończy się już wstrzymaniem. Przy takim materiale (B3, F3, B7) werdykt przeskakiwał między „fałszywe” a „wprowadzające w błąd”, bo ekstraktor zamieniał „dziś” na datę kalendarzową i sędzia widział zwykłą sprzeczność dat. Od 22.11 ekstraktor zostawia słowa „dziś”, „wczoraj” w twierdzeniu, a sędzia ma osobną zasadę dla zdarzenia przedstawionego jako bieżące.
 - **Tożsamość dokumentu (I).** Pytanie „czy ten adres to ten sam materiał” bywa zamieniane na kilka tez o treści strony, co gubi pytanie i dokłada fałszywie dodatnie tezy. To najsłabszy scenariusz.
-- **Liczby nieostre (D5).** „Ponad 30 urządzeń” bywa brane za obalenie „63 laptopów”, choć nie podaje górnej granicy.
+- **Liczby nieostre (D5).** „Ponad 30 urządzeń” bywało brane za obalenie „63 laptopów”, choć nie podaje górnej granicy. Od 22.11 sędzia porównuje liczby tylko wtedy, gdy liczą to samo, a przybliżenie zgodne z twierdzeniem prowadzi do wstrzymania się. Przypadek pozostaje graniczny.
 - **Dobór dowodów.** Zapytania korpusowe potrafią zająć prawie cały limit dowodów i wypchnąć trafny fact-check. Izolowany eksperyment na jednej tezie ([A13](../evals/diagnostics/A13-selection.jsonl)) pokazał, że naprzemienne wypełnianie limitu z kolejnych list trafień naprawia werdykt.
 - **Cytaty kontekstowe.** Duża część cytatów z rolą „kontekst” dotyczyła innych spraw; ręczna ocena wszystkich użyć cytatów jest w [codex-citations.jsonl](../evals/diagnostics/codex-citations.jsonl) i [google-priority-citations.jsonl](../evals/diagnostics/google-priority-citations.jsonl). W przebiegu `2026-11-21T23-49-45.135Z` sędzia uznał za trafne 140/152 (92,1%) cytatów potwierdzających i obalających, ale tylko 18/94 (19,1%) kontekstowych, razem 158/246 (64,2%). Dlatego materiały o innej sprawie nie są już cytatami przy twierdzeniu, tylko osobną listą bez fragmentu ([docs/agent.md](agent.md#sędzia-i-reguły-w-kodzie-tryb-plan), reguła 7). Każdy cytat, który system nadal pokazuje, wchodzi do miernika. `evals/report.mjs` podaje wynik osobno dla obu ról. Wynik po zmianie wymaga nowego przebiegu i oceny sędziego.
 - **Niedeterminizm planu zapytań.** Model formułuje zapytania za każdym razem trochę inaczej, także przy temperaturze 0, więc sędzia dostaje inny materiał. Spójność zapewnia ponowne użycie wyniku, nie determinizm modelu; parafraza to nowe zgłoszenie i może dostać inny wynik ([ślady](../evals/diagnostics/consistency-baseline-trace.jsonl)).

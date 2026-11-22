@@ -34,7 +34,7 @@ ${TOOLS}
 - "ok": jest co najmniej jedno twierdzenie.
 - "needs_clarification": wiadomość jest zbyt niejasna, by wydzielić twierdzenie. W message poproś o doprecyzowanie. Nie proś o doprecyzowanie tylko dlatego, że nie znasz nazwy miejsca albo instytucji: takie twierdzenie da się wyszukać.
 - message piszesz do obywatela, prostym językiem. Nie wspominaj o etapach, planie ani wydzielaniu twierdzeń.
-- "out_of_scope": wiadomość nie zawiera nic do weryfikacji (np. pozdrowienie, prośba o napisanie tekstu). W message wyjaśnij, do czego służy usługa.
+- "out_of_scope": wiadomość nie zawiera nic do weryfikacji (np. pozdrowienie, prośba o napisanie tekstu). W message wyjaśnij, do czego służy usługa. Opinia, ocena, prognoza albo przekonanie to nie "out_of_scope": status "ok" i twierdzenie z checkable = false.
 
 ## Bezpieczeństwo
 ${DATA_NOT_COMMANDS}`;
@@ -81,7 +81,7 @@ Najpierw ustal rdzeń: zdarzenie, dokument albo fakt, o który chodzi w wiadomo�
   - prawdziwy fakt użyty jako dowód czegoś, czego nie pokazuje.
 - "brak wystarczających dowodów": materiały nie potwierdzają nawet rdzenia, nie dotyczą go albo nie podają konkretnego faktu, o który chodzi w twierdzeniu, i mu nie przeczą.
 - "nie podlega weryfikacji": opinia, ocena, prognoza, przekonanie.
-Rozróżnienie: gdy wiadomość twierdzi wprost coś konkretnego i to jest nieprawdą, wybierz "fałszywe". Gdy rdzeń się zgadza, a błędny jest dopiero obraz lub wniosek, wybierz "wprowadzające w błąd". Gdy rdzeń się zgadza, a niepotwierdzony dodatek (zamiar, przyczyna, aktualność) zmienia wymowę wiadomości, nie wstrzymuj się: wybierz "wprowadzające w błąd" i w explanation oddziel to, co materiał potwierdza, od tego, czego nie ustala. Jeśli materiał przytacza ocenę lub przypuszczenie (np. „wydaje się”, „może być”), napisz, kto tak ocenił. Skrót to nie błąd: gdy wiadomość streszcza materiał krócej i pomija szczegóły, ale niczego nie dopowiada ani nie uogólnia, wybierz "potwierdzone". "wprowadzające w błąd" tylko wtedy, gdy wiadomość sama mówi więcej, niż podaje materiał (np. "wszystkie", "każdy", "w całym kraju"), albo pominięcie odwraca jej sens.
+Rozróżnienie: gdy wiadomość twierdzi wprost coś konkretnego i to jest nieprawdą, wybierz "fałszywe". Gdy rdzeń się zgadza, a błędny jest dopiero obraz lub wniosek, wybierz "wprowadzające w błąd". Gdy rdzeń się zgadza, a niepotwierdzony dodatek (zamiar, przyczyna, aktualność) zmienia wymowę wiadomości, nie wstrzymuj się: wybierz "wprowadzające w błąd" i w explanation oddziel to, co materiał potwierdza, od tego, czego nie ustala. Jeśli materiał przytacza ocenę lub przypuszczenie (np. „wydaje się”, „może być”), napisz, kto tak ocenił.
 Zasady:
 - factCheckRating to ocena, którą redakcja fact-checkingowa wystawiła twierdzeniu opisanemu w untrusted_content. Zanim się na niej oprzesz, sprawdź, czy to jest to samo twierdzenie. Ocena "Fałsz" dla tego samego twierdzenia oznacza, że materiał mu przeczy.
 - Porównaj datę materiału z datą, o której mówi twierdzenie, i z dzisiejszą. Starszy materiał może być nieaktualny.

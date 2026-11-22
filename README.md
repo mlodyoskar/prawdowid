@@ -1,6 +1,6 @@
 # Prawdowid
 
-Narzędzie do weryfikacji informacji dla obywatela: przyjmuje tekst lub URL przez stronę WWW i drugi kanał komunikacji, wyszukuje dowody w jawnym katalogu źródeł i zwraca werdykt z cytatami. Gdy dowodów brakuje, uczciwie wstrzymuje się od rozstrzygnięcia.
+Narzędzie do weryfikacji informacji dla obywatela: przyjmuje tekst, URL lub zrzut ekranu przez stronę WWW i drugi kanał komunikacji, wyszukuje dowody w jawnym katalogu źródeł i zwraca werdykt z cytatami. Gdy dowodów brakuje, uczciwie wstrzymuje się od rozstrzygnięcia.
 
 Wyzwanie MSZ na HackNation 2026.
 
@@ -10,7 +10,7 @@ Wyzwanie MSZ na HackNation 2026.
 
 - **Strona WWW:** https://prawdowidweb-production.up.railway.app — wpisz pytanie, wklej link albo dodaj zrzut ekranu. Nie potrzeba konta ani kluczy.
 - **Drugi kanał: WhatsApp** (oficjalne WhatsApp Cloud API). Numer testowy Meta przyjmuje wiadomości najwyżej od 5 numerów dopisanych ręcznie, więc jury nie napisze do niego samo. Dlatego jest **adapter demonstracyjny**: https://prawdowidweb-production.up.railway.app/whatsapp to czat, który wysyła wiadomość przez ten sam kod kanału co prawdziwy webhook Meta (komendy POMOC i USUŃ, limity, komunikaty o błędach, format odpowiedzi). Różni się tylko ostatnim krokiem: odpowiedź trafia do okna czatu zamiast do Meta. Prawdziwy kanał pokazujemy na zrzutach ekranu i w filmie. Wiadomość trafia do tej samej kolejki i tej samej funkcji `runVerification()` co strona, więc werdykt i dowody są te same ([Kanał WhatsApp](#kanał-whatsapp)). Ewaluacja sprawdza to na prawdziwym, podpisanym webhooku (scenariusz G).
-- Każde sprawdzenie ma własny adres (`?check=…`), który można odświeżyć i udostępnić. Sprawdzenie da się usunąć.
+- Każde sprawdzenie ma własny adres (`/w/<id>`), który można odświeżyć i udostępnić. Sprawdzenie da się usunąć.
 
 ### Materiały
 
@@ -40,28 +40,32 @@ Wyzwanie MSZ na HackNation 2026.
 | Spójność kanałów WWW i WhatsApp | 100%        | 100% (18/18)    |
 | Koszt modelu za 1000 zapytań    | raportowany | ok. 2,60 USD    |
 
+- **Zestaw:** liczby dotyczą naszego zestawu 52 przypadków (scenariusze A, B, D, E, F, G, I, J i wyjście poza zakres), nie zestawu jury. Poprawność cytowania ocenił niezależny sędzia: osobne wywołania Claude bez dostępu do oczekiwanych odpowiedzi ([docs/evaluation.md](docs/evaluation.md)).
+- **Scenariusz C (sprzeczne źródła) nie jest mierzony:** w korpusie nie znaleźliśmy pary dokumentów, które sobie przeczą w tej samej sprawie. Rozbieżność system pokazuje, gdy ją znajdzie (`discrepancy`), ale nie mamy na to liczby.
+- **Scenariusz H (powtórne zgłoszenie)** sprawdzają testy jednostkowe spraw moderatora ([apps/api/src/cases.test.ts](apps/api/src/cases.test.ts)), nie ewaluacja z modelem.
+
 - **Spójność kanałów i powtórzeń** w tym przebiegu jest mierzona bez ponownego użycia wyniku, czyli przy każdym powtórzeniu model planuje wyszukiwanie od nowa. Na produkcji to samo zgłoszenie z WWW i WhatsApp dostaje jeden zapisany wynik, więc werdykt i dowody są identyczne ([Spójność kanałów](docs/agent.md#spójność-kanałów-i-powtórzeń)). Parafraza to nowe zgłoszenie i może dostać inny wynik.
 
 ### Czego system nie obsługuje
 
-- **Wiedza tylko z jawnego zbioru:** korpus komunikatów urzędowych (snapshot w repo) i fact-checki z Google Fact Check Tools API. Brak wyniku nie oznacza, że zdarzenia nie było; system wtedy się wstrzymuje.
+- **Wiedza tylko z jawnego zbioru:** korpus komunikatów urzędowych (snapshot w repo) i fact-checki z Google Fact Check Tools API. Katalog EUvsDisinfo daje tylko kontekst, nigdy dowód ani werdykt. Brak wyniku nie oznacza, że zdarzenia nie było; system wtedy się wstrzymuje.
 - **Strony spoza katalogu** podane w pytaniu są pobierane i oceniane jako materiał, nigdy jako dowód.
 - **Obrazy:** zrzut ekranu lub zdjęcie z tekstem jest obsługiwane: model odczytuje treść i datę, a system weryfikuje je jak tekst (data na obrazie nie potwierdza daty publikacji). Nie ma natomiast wyszukiwania wcześniejszych wystąpień obrazu (reverse image), analizy metadanych pliku ani wykrywania obrazów wygenerowanych przez AI.
 - **Nagrania audio i wideo:** nieobsługiwane.
-- **Języki:** pytania i odpowiedzi po polsku; nie przeszukujemy źródeł obcojęzycznych.
-- **Baza incydentów EUvsDisinfo:** niepodłączona.
+- **Języki:** pytania i odpowiedzi po polsku. Fact-checki szukamy po polsku i angielsku, a wpisy EUvsDisinfo są po angielsku; cytatów obcojęzycznych nie tłumaczymy.
+- **Baza incydentów EUvsDisinfo:** działa tylko z kluczem `EUVSDISINFO_API_KEY`; bez niego wynik ma stan „katalog niedostępny”, a werdykt się nie zmienia ([Katalog incydentów](#katalog-incydentów-euvsdisinfo)).
 
 ## Mapa repo
 
 ### Kod
 
-| Ścieżka                                  | Zawartość                                                                                           |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [apps/web](apps/web)                     | Frontend WWW (Vite, React, Tailwind, shadcn/ui) i design system w `src/ui`                          |
-| [apps/api](apps/api)                     | HTTP API (Hono): zadania asynchroniczne, walidacja, zapis przebiegu, wybór modelu; woła `verify()`  |
-| [packages/contracts](packages/contracts) | Wspólne schematy zod i typy: `Verdict`, `ClaimResult`, `Evidence`, `CheckRequest`/`CheckResponse`   |
-| [packages/agent](packages/agent)         | Logika weryfikacji: `verify()` i narzędzia AI SDK; model dowolnego dostawcy wstrzykiwany z zewnątrz |
-| [packages/sources](packages/sources)     | Warstwa danych: korpus (SQLite FTS) i scraper, klient Google Fact Check, pobieranie URL-i           |
+| Ścieżka                                  | Zawartość                                                                                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [apps/web](apps/web)                     | Frontend WWW (Vite, React, Tailwind, shadcn/ui) i design system w `src/ui`                                                                       |
+| [apps/api](apps/api)                     | HTTP API (Hono): zadania asynchroniczne, walidacja, zapis przebiegu, wybór modelu, sprawy moderatora, kanał WhatsApp; woła `runVerification()`   |
+| [packages/contracts](packages/contracts) | Wspólne schematy zod i typy: `Verdict`, `ClaimResult`, `Evidence`, `CheckRequest`/`CheckResponse`                                                |
+| [packages/agent](packages/agent)         | Logika weryfikacji: `runVerification()` (tryb `agent` lub `plan`), maskowanie danych osobowych; model dowolnego dostawcy wstrzykiwany z zewnątrz |
+| [packages/sources](packages/sources)     | Warstwa danych: korpus (SQLite FTS) z importem snapshotu, klient Google Fact Check, klient EUvsDisinfo, pobieranie URL-i                         |
 
 Zależności: `api → agent → sources → contracts`. Frontend zna tylko `contracts`.
 
@@ -120,7 +124,7 @@ Krok wyszukiwania ma dwa tryby wybierane zmienną `RESEARCH_MODE`: `agent` (domy
 
 `result.status` to `ok` (werdykty z dowodami), `needs_clarification`, `out_of_scope` albo `error` (awaria techniczna, nigdy werdykt). Typy są w [packages/contracts](packages/contracts/src/index.ts).
 
-Zabezpieczenia: URL-e z tekstu (maksymalnie 2) są pobierane z ochroną SSRF i traktowane jako materiał do oceny, nie dowód. Dane osobowe (e-mail, telefon, PESEL, konto, karta, dowód) są maskowane przed zapisem i przed modelem. `POST` jest limitowany per IP (`RATE_LIMIT_PER_MINUTE`). Wykryte próby prompt injection trafiają do ostrzeżeń i logu `prompt_injection_suspected`.
+Zabezpieczenia: URL-e z tekstu (maksymalnie 2) są pobierane z ochroną SSRF i traktowane jako materiał do oceny, nie dowód. Dane osobowe (e-mail, telefon, PESEL, NIP, REGON, numer konta, karta, dowód osobisty, paszport, księga wieczysta, adres IP) są maskowane przed zapisem i przed modelem. `POST` jest limitowany per IP (`RATE_LIMIT_PER_MINUTE`). Wykryte próby prompt injection trafiają do ostrzeżeń i logu `prompt_injection_suspected`.
 
 #### Sprawy moderatora
 
@@ -183,7 +187,7 @@ Konfiguracja:
 4. Ustaw zmienne `WHATSAPP_*` (patrz [.env.example](.env.example)) i uruchom API. W logu pojawi się `whatsapp_enabled`.
 5. _WhatsApp → Configuration_: Callback URL `https://<adres-api>/webhooks/whatsapp`, Verify token jak w zmiennej, subskrypcja pola `messages`. Lokalnie potrzebny jest publiczny tunel, np. `cloudflared tunnel --url http://localhost:3000`.
 
-Koszt kanału: odpowiedzi na wiadomość od użytkownika mieszczą się w 24-godzinnym oknie obsługi i według cennika Meta są bezpłatne (płatne są tylko szablony wysyłane z inicjatywy firmy, których nie używamy). Użytkownik płaci najwyżej za własną transmisję danych.
+Koszt kanału: odpowiedzi w 24-godzinnym oknie obsługi to wiadomości serwisowe. Pierwsze 1000 w miesiącu jest bezpłatne, kolejne kosztują ok. 0,0101 € za wiadomość (numery +48), czyli ok. 10 € za kolejne 1000 zapytań. Szablonów wysyłanych z inicjatywy firmy nie używamy. Użytkownik płaci najwyżej za własną transmisję danych. Szczegóły: [docs/koszty-whatsapp.md](docs/koszty-whatsapp.md).
 
 ## Wdrożenie (Railway)
 

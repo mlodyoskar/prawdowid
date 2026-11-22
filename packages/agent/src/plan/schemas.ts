@@ -30,7 +30,10 @@ export type Extraction = z.infer<typeof Extraction>;
 export const Refinement = z.object({ searches: z.array(SearchRequest) });
 export type Refinement = z.infer<typeof Refinement>;
 
-/** `direct`: materiał dotyczy wprost tego twierdzenia. Tylko taki może uzasadniać werdykt. */
+/**
+ * `direct`: materiał dotyczy tej samej sprawy co twierdzenie, nawet jeśli twierdzenie podaje inne
+ * szczegóły (datę, miejsce, liczbę). Tylko taki materiał może uzasadniać werdykt.
+ */
 export const Relation = z.enum(['direct', 'related', 'unrelated']);
 export type Relation = z.infer<typeof Relation>;
 

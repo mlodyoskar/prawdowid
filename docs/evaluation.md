@@ -111,9 +111,11 @@ set -- evals/runs/2026-11-21T21-19-13.585Z-agent-anthropic_claude-haiku-5.5.json
   evals/runs/2026-11-21T21-19-13.585Z-plan-anthropic_claude-haiku-5.5.jsonl \
   evals/runs/2026-11-21T21-22-06.613Z-agent-anthropic_claude-haiku-5.5.jsonl \
   evals/runs/2026-11-21T21-24-02.923Z-plan-anthropic_claude-haiku-5.5.jsonl
-node --env-file=.env evals/judge.mjs "$@"
-node evals/report.mjs evals/runs/judge-openai_gpt-4.1-nano.jsonl "$@"
+node evals/judge.mjs export "$@"   # potem w Claude Code: /judge-evals
+node evals/report.mjs "$@"
 ```
+
+Sędzią jest teraz sesja Claude Code (umiejętność [`judge-evals`](../.claude/skills/judge-evals/SKILL.md)), a nie wywołanie API. Tabele powyżej powstały jeszcze z sędzią `openai/gpt-4.1-nano`; jego oceny zostały w `evals/runs/judge-openai_gpt-4.1-nano.jsonl` tylko jako zapis historyczny. Wyniki nowego sędziego są w sekcji [Sędzia Claude Code](#sędzia-claude-code).
 
 Dane wejściowe i etykiety są w [cases.jsonl](../evals/cases.jsonl). [Surowe przebiegi](../evals/runs/) zawierają odpowiedzi, czasy, tokeny, stawki i sygnały injection. Zapisane pomiary można przeliczyć bez wywołań modelu. Ponowne wywołanie Haiku może zwrócić inne wyniki.
 
@@ -126,7 +128,7 @@ Dane wejściowe i etykiety są w [cases.jsonl](../evals/cases.jsonl). [Surowe pr
 - Wstrzymanie się liczymy na sześciu pytaniach D z nieudokumentowaną tezą. Opinie i prognoza wchodzą do macro-F1. E wymaga właściwego werdyktu, zgodności z czystą kontrolą z tego samego powtórzenia i sygnału z właściwego typu wejścia. J wymaga odpowiedniego statusu błędu.
 - Powtarzalność wymaga oczekiwanego statusu oraz tego samego zestawu werdyktów i przypisanych do nich adresów we wszystkich powtórzeniach. G porównuje niezależne sprawdzenia i dodatkowo czyta werdykty i adresy widoczne w faktycznej odpowiedzi WhatsApp. Adapter może skrócić listę źródeł do jednego. Sieć Meta, kolejka produkcyjna i przeglądarka nie wchodzą do czasu.
 - Mediana czasu obejmuje bezpośrednie sprawdzenia tekstu i URL bez wymuszanych awarii. Limit eksperymentu wynosił 60 s. Koszt na 100 dotyczy sprawdzeń bezpośrednich z danymi o tokenach. Ceny katalogowe pomijają ewentualne rabaty cache, a koszt niezależnego sędziego jest osobny.
-- Niezależny sędzia widzi wyłącznie tezę, role, cytaty i wyjaśnienie z ograniczeniami. Ocenia każdy dostarczony cytat i wskazuje dodatkowe fakty oraz potrzebny dokument rozstrzygający. Brak cytatów daje nieokreśloną poprawność cytatów. W szczególności flagi przy pustej liście cytatów nie dowodzą halucynacji. [Kolejka recenzji](../evals/runs/review.jsonl) zawiera wszystkie oznaczone odpowiedzi i jedną piątą pozostałych, wybraną powtarzalnie według skrótu treści.
+- Sędzia (Claude Code) widzi pytanie użytkownika, tezę, werdykt, wyjaśnienie, cytaty z rolami i **pełny tekst** każdego cytowanego dokumentu, ale nie widzi identyfikatora przypadku ani etykiety wzorcowej. Ocenia, czy teza oddaje pytanie, czy każdy cytat pełni swoją rolę, czy werdykt wynika z materiału, jaki werdykt sam by wydał, czy wyjaśnienie dodaje niepodparte fakty i czy przy wstrzymaniu się wskazano dokument rozstrzygający. [Kolejka recenzji](../evals/runs/review.jsonl) zawiera wszystkie oznaczone odpowiedzi i jedną piątą pozostałych, wybraną powtarzalnie według skrótu treści.
 
 ## Przykłady do recenzji
 
@@ -265,3 +267,38 @@ Miara spójności kanałów wymaga identycznego pełnego wyniku (werdykty i wszy
 **Jak czytać „po”.** Z ponownym użyciem wyniku trzy powtórzenia nie są niezależnymi próbami: drugie i trzecie to kopie pierwszego. Miary jakości mają więc faktycznie jedną próbę na przypadek, a pojedynczy błąd liczy się potrójnie. Tak działa spadek odporności na injection: E3 w jedynym świeżym sprawdzeniu wstrzymał się zamiast potwierdzić, a kopie powtórzyły ten wynik (przed zmianą 2/3). To koszt rozwiązania: utrwalony zostaje także błędny werdykt, najdłużej na `CHECK_REUSE_HOURS`. Do porównań jakości modeli lub promptów uruchamiaj ewaluację z `--no-reuse`.
 
 Nieobjęte gwarancją: parafrazy, czyli inne zgłoszenie, oraz zrzuty ekranu między kanałami, bo Meta przekompresowuje zdjęcie. Surowe wyniki: [rozwój](../evals/runs/2026-11-21T23-13-10.284Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [zbiór odłożony](../evals/runs/2026-11-21T23-13-10.284Z-plan-held-out-anthropic_claude-haiku-5.5.jsonl).
+
+## Sędzia Claude Code
+
+Ten sam przebieg co w sekcji powyżej (Haiku 5.5, plan, 144 sprawdzenia bezpośrednie, 137 tez) ocenił `claude-opus-5-5` w sesji Claude Code według [rubryki](../.claude/skills/judge-evals/rubric.md). Oceny są w [judge-claude-code.jsonl](../evals/runs/judge-claude-code.jsonl), każda z uzasadnieniem.
+
+| Miara (sędzia)                           |       Wszystkie |       Rozwojowe |      Odłożone |
+| ---------------------------------------- | --------------: | --------------: | ------------: |
+| Cytat pełni przypisaną rolę              | 215/296 (72,6%) | 151/210 (71,9%) | 64/86 (74,4%) |
+| Teza oddaje pytanie użytkownika          | 113/137 (82,5%) |   86/99 (86,9%) | 27/38 (71,1%) |
+| Werdykt wynika z cytowanego materiału    | 123/137 (89,8%) |   90/99 (90,9%) | 33/38 (86,8%) |
+| Wyjaśnienie bez niepodpartych faktów     | 127/129 (98,4%) |   93/94 (98,9%) | 34/35 (97,1%) |
+| Dokument rozstrzygający przy wstrzymaniu |    31/31 (100%) |    20/20 (100%) |  11/11 (100%) |
+
+- **Cytaty.** Wspierające i obalające są prawie zawsze trafne (168/171). Prawie wszystkie błędy to kontekst: 78 ze 125 cytatów kontekstowych dotyczy innej sprawy (inne miejscowości z komunikatów RSO, ostrzeżenie o aminach przy kubku, inne zatrzymania CBZC).
+- **Teza a pytanie.** Wszystkie 24 niezgodności to I1–I3 i B3. W I system sprawdza treść strony zamiast pytania, czy link to wskazany dokument; w I3 potwierdza szczegóły ETIAS, choć użytkownik przypisał stronę seminarium. W B3 znika informacja, że stary alert jest przedstawiany jako dzisiejszy.
+- **Werdykty.** Wśród 14 nieuzasadnionych: F3 ×3 (stary alert z nową datą to „wprowadzające w błąd”, nie brak dowodów), A8 i X5 ×3 oraz E3 ×1 (dokument podaje „około 300”, a system się wstrzymał), A2 ×3 i B4 ×1 (zła cecha podana wprost to „fałszywe”, nie „wprowadzające w błąd”), D5 ×1 („ponad 30 urządzeń” nie obala 63 laptopów), X5 ×1 (89 wyróżnionych nie przeczy 105 uczestnikom), I2 ×1.
+- **Zgodność z etykietami.** Własny werdykt sędziego zgadza się z etykietą wzorcową we wszystkich przypadkach jednotezowych. Sędzia znał jednak etykiety z wcześniejszej części sesji, więc to nie jest niezależna recenzja etykiet. Dlatego umiejętność `judge-evals` zleca teraz ocenę subagentom ze świeżym kontekstem, po jednym na partię, z zakazem otwierania plików z etykietami. Ten przebieg warto powtórzyć w tym trybie.
+- **Ograniczenia.** Sędzia i oceniany system to modele Anthropic, więc możliwa jest wspólna stronniczość. Rubryka i pełny tekst źródeł ją ograniczają, ale nie usuwają. Wynik 85% poprawności cytatów należy potwierdzić na próbce ocenionej przez człowieka.
+
+## Werdykty: wiadomość dla sędziego, definicje i relacja „direct”
+
+Trzy osobne zmiany w trybie plan, każda sprawdzona na tym samym podzbiorze 20 przypadków (dwa przebiegi, Haiku 5.5, `--no-reuse`). Przypadki B7, B8 i A14 dopisano przed zmianami, z etykietami ustalonymi z góry.
+
+| Wariant                                                    | Zgodne z etykietą | Obniżone werdykty | Rundy poprawy |
+| ---------------------------------------------------------- | ----------------: | ----------------: | ------------: |
+| Przed zmianami                                             |             26/40 |                 — |             — |
+| 1. Sędzia widzi wiadomość użytkownika                      |             25/40 |                 — |             — |
+| 2. Definicje: fałszywe / wprowadzające w błąd / brak       |             30/40 |                 1 |             5 |
+| 3. „direct” = ta sama sprawa, także przy błędnym szczególe |             32/40 |                 0 |             1 |
+
+Pełny zbiór po wszystkich trzech zmianach (dwa przebiegi bez ponownego użycia wyniku): macro-F1 0,916 na zbiorze rozwojowym i 0,787 na odłożonym. Poprzedni pomiar z ponownym użyciem wyniku dawał 0,687 i 0,619, więc porównanie jest przybliżone. F1 dla „wprowadzające w błąd” wzrosło z 0 do 0,61. Odporność na injection 10/10, awarie jako status 8/8, wstrzymanie się 11/12.
+
+Nadal nie działa: I1–I3 (ekstrakcja rozbija pytanie o tożsamość dokumentu na kilka tez o treści strony), granica „fałszywe” / „wprowadzające w błąd” przy starym materiale podanym jako dzisiejszy (B3, F3, B7 wychodzą raz tak, raz tak), D5 („ponad 30 urządzeń” bywa brane za obalenie 63 laptopów). Zmiany nie dotyczą trybu agent.
+
+Surowe wyniki: [przed](../evals/runs/2026-11-21T23-39-36.724Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [1](../evals/runs/2026-11-21T23-42-31.207Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [2](../evals/runs/2026-11-21T23-45-05.959Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [3](../evals/runs/2026-11-21T23-47-25.292Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [pełny, rozwój](../evals/runs/2026-11-21T23-49-45.135Z-plan-dev-anthropic_claude-haiku-5.5.jsonl) · [pełny, odłożone](../evals/runs/2026-11-21T23-49-45.135Z-plan-held-out-anthropic_claude-haiku-5.5.jsonl).

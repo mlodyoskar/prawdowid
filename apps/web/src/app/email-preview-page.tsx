@@ -270,7 +270,8 @@ export function EmailPreviewPage() {
             pisze, że sprawę przekazano. Treść maili to przykład, nie prawdziwe zgłoszenia.
           </p>
         </Notice>
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-8">
+        {/* One variant per row, full width: side by side each mail was too narrow to read. */}
+        <div className="flex flex-col gap-12">
           <Variant
             id="wariant-a"
             label="Wariant A"

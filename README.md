@@ -20,19 +20,20 @@ Zależności: `api → agent → sources → contracts`. Frontend zna tylko `con
 
 ### Dokumenty i dane
 
-| Ścieżka                                                              | Zawartość                                                                      |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [docs/challenge/wymagania.md](docs/challenge/wymagania.md)           | Wymagania wyzwania w wersji tekstowej: MVP, werdykty, metryki, ocena, co oddać |
-| [docs/challenge/zadania.md](docs/challenge/zadania.md)               | Przykładowe pytania jury z oczekiwanymi odpowiedziami                          |
-| [docs/challenge/tresc-zadania.pdf](docs/challenge/tresc-zadania.pdf) | Oryginalna treść zadania                                                       |
-| [docs/challenge/regulamin.pdf](docs/challenge/regulamin.pdf)         | Oryginalny regulamin (nagroda, prawa autorskie)                                |
-| [docs/data-sources.md](docs/data-sources.md)                         | Dane: katalog źródeł, fact-checki, EUvsDisinfo, czego brakuje                  |
-| [docs/open-questions.md](docs/open-questions.md)                     | Otwarte pytania do mentorów                                                    |
-| [docs/agent.md](docs/agent.md)                                       | Projekt agenta: decyzje, tryby `agent` i `plan`, reguły werdyktu, stan prac    |
-| [todo.md](todo.md)                                                   | Odłożone decyzje                                                               |
-| [data/sources.ts](data/sources.ts)                                   | Lista URL-i źródeł: jedyne źródło prawdy (z licencją źródeł korpusu)           |
-| [data/corpus/snapshot.jsonl](data/corpus/snapshot.jsonl)             | Snapshot korpusu ze scrapera: dokumenty pocięte na fragmenty                   |
-| [.env.example](.env.example)                                         | Wymagane zmienne środowiskowe (bez wartości)                                   |
+| Ścieżka                                                              | Zawartość                                                                                        |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [docs/challenge/wymagania.md](docs/challenge/wymagania.md)           | Wymagania wyzwania w wersji tekstowej: MVP, werdykty, metryki, ocena, co oddać                   |
+| [docs/challenge/zadania.md](docs/challenge/zadania.md)               | Przykładowe pytania jury z oczekiwanymi odpowiedziami                                            |
+| [docs/challenge/tresc-zadania.pdf](docs/challenge/tresc-zadania.pdf) | Oryginalna treść zadania                                                                         |
+| [docs/challenge/regulamin.pdf](docs/challenge/regulamin.pdf)         | Oryginalny regulamin (nagroda, prawa autorskie)                                                  |
+| [docs/data-sources.md](docs/data-sources.md)                         | Dane: katalog źródeł, fact-checki, EUvsDisinfo, czego brakuje                                    |
+| [docs/open-questions.md](docs/open-questions.md)                     | Otwarte pytania do mentorów                                                                      |
+| [docs/evaluation.md](docs/evaluation.md)                             | Metoda ewaluacji i odtworzenie; liczby generuje `pnpm eval:results` do `evals/results/latest.md` |
+| [docs/agent.md](docs/agent.md)                                       | Projekt agenta: decyzje, tryby `agent` i `plan`, reguły werdyktu, stan prac                      |
+| [todo.md](todo.md)                                                   | Odłożone decyzje                                                                                 |
+| [data/sources.ts](data/sources.ts)                                   | Lista URL-i źródeł: jedyne źródło prawdy (z licencją źródeł korpusu)                             |
+| [data/corpus/snapshot.jsonl](data/corpus/snapshot.jsonl)             | Snapshot korpusu ze scrapera: dokumenty pocięte na fragmenty                                     |
+| [.env.example](.env.example)                                         | Wymagane zmienne środowiskowe (bez wartości)                                                     |
 
 ## Uruchomienie
 

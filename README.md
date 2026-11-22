@@ -75,6 +75,16 @@ Krok wyszukiwania ma dwa tryby wybierane zmienną `RESEARCH_MODE`: `agent` (domy
 
 Zabezpieczenia: URL-e z tekstu (maksymalnie 2) są pobierane z ochroną SSRF i traktowane jako materiał do oceny, nie dowód. Dane osobowe (e-mail, telefon, PESEL, konto, karta, dowód) są maskowane przed zapisem i przed modelem. `POST` jest limitowany per IP (`RATE_LIMIT_PER_MINUTE`). Wykryte próby prompt injection trafiają do ostrzeżeń i logu `prompt_injection_suspected`.
 
+#### Sprawy moderatora
+
+Twierdzenia z każdego pełnego wyniku (`status: ok`) trafiają do spraw w tej samej bazie co sprawdzenia ([apps/api/src/cases.ts](apps/api/src/cases.ts)). Parafrazy łączy podobieństwo rdzeni słów (Jaccard ≥ 0,5), bez modelu. Sprawa dostaje stan `review_recommended`, gdy:
+
+- `repeat_no_evidence`: werdykt `brak wystarczających dowodów` i co najmniej `CASE_REPEAT_THRESHOLD` (3) zgłoszeń w oknie `CASE_WINDOW_HOURS` (24 h);
+- `high_risk`: temat z jawnej listy (zdrowie publiczne, bezpieczeństwo, wybory, klęski) i werdykt inny niż `potwierdzone`;
+- `injection`: w materiale wykryto próbę prompt injection.
+
+Awaria, prośba o doprecyzowanie i opinie nie tworzą spraw. Przejście jest logowane raz jako `case_review_recommended` (bez treści), a `GET /api/checks/:checkId` zwraca wtedy pole `escalation`. WWW i WhatsApp pokazują ten sam komunikat „oznaczyliśmy do sprawdzenia przez moderatora”. Powiadomień dziś nie wysyłamy, więc system nigdy nie pisze „przekazano”. Sprawa trzyma tylko zamaskowane twierdzenie, werdykt i liczniki; znika z retencją (`CHECKS_RETENTION_HOURS`), a usunięcie sesji usuwa jej zgłoszenie ze sprawy.
+
 ### Korpus
 
 Korpus to plik SQLite (`data/corpus.db`) budowany od zera ze snapshotu [data/corpus/snapshot.jsonl](data/corpus/snapshot.jsonl): jeden dokument w wierszu, z tytułem, wydawcą, datą publikacji i pobrania, adresem oraz treścią pociętą na fragmenty do 600 znaków.

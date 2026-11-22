@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import {
   CheckRequest,
   MAX_TEXT_LENGTH,
+  type CaseEscalation,
   type CheckJob,
   type CheckResponse,
 } from '@prawdowid/contracts';
@@ -278,7 +279,7 @@ export class WhatsAppChannel {
   }
 
   /** Woła to `JobRunner.onDone`: odsyła wynik, jeśli sprawdzenie przyszło z WhatsAppa. */
-  onCheckDone(checkId: string, response: CheckResponse): void {
+  onCheckDone(checkId: string, response: CheckResponse, escalation?: CaseEscalation): void {
     const pending = this.#pending.get(checkId);
     if (!pending) return;
     this.#pending.delete(checkId);
@@ -286,7 +287,10 @@ export class WhatsAppChannel {
     this.#track(
       (async () => {
         await pending.ack;
-        const sent = await this.#send(pending.to, formatReply(response, this.#deps.webOrigin));
+        const sent = await this.#send(
+          pending.to,
+          formatReply(response, this.#deps.webOrigin, escalation),
+        );
         if (sent) {
           this.#deps.log('whatsapp_reply_sent', {
             sender: hashClientKey(pending.to),

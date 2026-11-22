@@ -1,9 +1,11 @@
-import type {
-  CheckResponse,
-  ClaimResult,
-  ErrorCode,
-  Evidence,
-  Verdict,
+import {
+  ESCALATION_MESSAGE,
+  type CaseEscalation,
+  type CheckResponse,
+  type ClaimResult,
+  type ErrorCode,
+  type Evidence,
+  type Verdict,
 } from '@prawdowid/contracts';
 
 import { WHATSAPP_TEXT_LIMIT } from './graph.ts';
@@ -111,9 +113,14 @@ function claimBlock(
 /**
  * Odpowiedź WhatsApp z wyniku sprawdzenia. Treść merytoryczna (werdykt, twierdzenie,
  * dowody) jest ta sama co w WWW; tylko skrócona i z linkiem do pełnego wyniku na końcu.
- * Status inny niż `ok` nigdy nie wygląda jak werdykt.
+ * Status inny niż `ok` nigdy nie wygląda jak werdykt. `escalation` (sprawa oznaczona do
+ * weryfikacji) dodaje ten sam komunikat co w WWW; nigdy nie mówi o przekazaniu.
  */
-export function formatReply(response: CheckResponse, webOrigin: string): string {
+export function formatReply(
+  response: CheckResponse,
+  webOrigin: string,
+  escalation?: CaseEscalation,
+): string {
   const footer = `Pełny wynik i wszystkie źródła:\n${resultUrl(webOrigin, response.checkId)}`;
 
   switch (response.status) {
@@ -143,6 +150,7 @@ export function formatReply(response: CheckResponse, webOrigin: string): string 
       )}`,
     );
   }
+  if (escalation) tail.push(ESCALATION_MESSAGE[escalation.reason]);
   if (response.warnings.length > 0) {
     tail.push(`Zwróć uwagę:\n${response.warnings.map((w) => `• ${truncate(w, 300)}`).join('\n')}`);
   }

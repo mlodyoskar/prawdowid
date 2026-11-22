@@ -159,11 +159,41 @@ export type CheckResponse = z.infer<typeof CheckResponse>;
 export const JobState = z.enum(['queued', 'running', 'done']);
 export type JobState = z.infer<typeof JobState>;
 
+/**
+ * Powód oznaczenia sprawy moderatora do weryfikacji przez człowieka:
+ * powtarzające się pytanie bez źródeł, temat wysokiego ryzyka albo próba prompt injection.
+ */
+export const EscalationReason = z.enum(['repeat_no_evidence', 'high_risk', 'injection']);
+export type EscalationReason = z.infer<typeof EscalationReason>;
+
+/**
+ * Sprawa, do której trafiło zgłoszenie, jest oznaczona do weryfikacji. To rekomendacja,
+ * nie przekazanie: dziś system nikogo nie powiadamia, więc nie wolno komunikować „przekazano”.
+ */
+export const CaseEscalation = z.object({
+  caseId: z.string(),
+  reason: EscalationReason,
+  state: z.literal('review_recommended'),
+});
+export type CaseEscalation = z.infer<typeof CaseEscalation>;
+
+/** Komunikat dla obywatela, wspólny dla wszystkich kanałów. Nigdy nie mówi o przekazaniu. */
+export const ESCALATION_MESSAGE: Record<EscalationReason, string> = {
+  repeat_no_evidence:
+    'O to pytanie pyta wiele osób, a nie mamy jeszcze źródeł. Oznaczyliśmy je do sprawdzenia przez moderatora.',
+  high_risk:
+    'To temat wysokiego ryzyka (np. zdrowie, bezpieczeństwo, wybory). Oznaczyliśmy go do sprawdzenia przez moderatora.',
+  injection:
+    'W sprawdzanym materiale były ukryte polecenia. Zignorowaliśmy je i oznaczyliśmy sprawę do sprawdzenia przez moderatora.',
+};
+
 export const CheckJob = z.object({
   checkId: z.string(),
   state: JobState,
   createdAt: z.string(),
   updatedAt: z.string(),
   result: CheckResponse.optional(),
+  /** Tylko gdy sprawa tego zgłoszenia jest oznaczona do weryfikacji (patrz CaseEscalation). */
+  escalation: CaseEscalation.optional(),
 });
 export type CheckJob = z.infer<typeof CheckJob>;

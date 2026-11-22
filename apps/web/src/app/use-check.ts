@@ -1,4 +1,4 @@
-import type { CheckRequest, CheckResponse } from '@prawdowid/contracts';
+import type { CaseEscalation, CheckRequest, CheckResponse } from '@prawdowid/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, createCheck, deleteCheck, getCheck } from './api.ts';
@@ -7,7 +7,13 @@ export type CheckState =
   | { phase: 'idle' }
   | { phase: 'submitting' }
   | { phase: 'waiting'; checkId: string; jobState: 'queued' | 'running' }
-  | { phase: 'done'; checkId: string; result: CheckResponse }
+  | {
+      phase: 'done';
+      checkId: string;
+      result: CheckResponse;
+      /** The moderator case for this check is flagged for human review (not forwarded). */
+      escalation?: CaseEscalation;
+    }
   | {
       phase: 'failed';
       title: string;
@@ -112,7 +118,12 @@ export function useCheck() {
         if (job.state === 'done') {
           setState(
             job.result
-              ? { phase: 'done', checkId, result: job.result }
+              ? {
+                  phase: 'done',
+                  checkId,
+                  result: job.result,
+                  ...(job.escalation ? { escalation: job.escalation } : {}),
+                }
               : failure(new ApiError('Usługa zwróciła nieoczekiwaną odpowiedź.', 200), checkId),
           );
           return;

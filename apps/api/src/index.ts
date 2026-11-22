@@ -4,10 +4,12 @@ import { dirname } from 'node:path';
 import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { runVerification } from '@prawdowid/agent';
+import type { CaseEscalation } from '@prawdowid/contracts';
 import { fetchPage, openCorpus, searchFactChecks } from '@prawdowid/sources';
 import type { Context } from 'hono';
 
 import { createApp } from './app.ts';
+import { SqliteCaseStore } from './cases.ts';
 import { estimateCostUsd } from './cost.ts';
 import { loadEnv } from './env.ts';
 import { JobRunner, SqliteJobStore } from './jobs.ts';
@@ -60,15 +62,21 @@ if (corpusInfo.documents === 0) {
   );
 }
 const store = new SqliteJobStore(env.CHECKS_DB_PATH);
+// Sprawy moderatora w tej samej bazie i z tą samą retencją co zapis sprawdzeń.
+const cases = new SqliteCaseStore(env.CHECKS_DB_PATH, {
+  repeatThreshold: env.CASE_REPEAT_THRESHOLD,
+  windowMs: env.CASE_WINDOW_HOURS * 3600_000,
+});
 
 const interrupted = store.failInterrupted(new Date());
 if (interrupted > 0) log('jobs_interrupted', { count: interrupted }, 'warn');
 
 const purge = () => {
-  const removed = store.purgeOlderThan(
-    new Date(Date.now() - env.CHECKS_RETENTION_HOURS * 3600_000),
-  );
+  const cutoff = new Date(Date.now() - env.CHECKS_RETENTION_HOURS * 3600_000);
+  const removed = store.purgeOlderThan(cutoff);
   if (removed > 0) log('jobs_purged', { count: removed });
+  const removedCases = cases.purgeOlderThan(cutoff);
+  if (removedCases > 0) log('cases_purged', { count: removedCases });
 };
 purge();
 const purgeTimer = setInterval(purge, 3600_000);
@@ -132,8 +140,20 @@ const runner = new JobRunner({
       },
     };
   },
+  onDelete: (checkId) => cases.removeCheck(checkId),
   // Log bez treści pytania (minimalizacja danych).
   onDone: (checkId, { response, metrics }) => {
+    // Sprawa moderatora przed odpowiedzią, żeby oba kanały pokazały to samo oznaczenie.
+    // Błąd zapisu sprawy nie może zablokować odpowiedzi obywatelowi.
+    let escalation: CaseEscalation | undefined;
+    try {
+      const outcome = cases.record(checkId, { response, metrics }, new Date());
+      escalation = outcome.escalation ?? undefined;
+      for (const r of outcome.recommended)
+        log('case_review_recommended', { checkId, ...r }, 'warn');
+    } catch (err) {
+      log('case_record_failed', { checkId, error: String(err) }, 'error');
+    }
     // Osobne zdarzenie dla każdej wykrytej próby injection: źródło i wzorzec, bez treści.
     for (const signal of metrics.injectionSignals) {
       log(
@@ -160,7 +180,7 @@ const runner = new JobRunner({
       },
       response.status === 'error' ? 'warn' : 'info',
     );
-    whatsapp?.onCheckDone(checkId, response);
+    whatsapp?.onCheckDone(checkId, response, escalation);
   },
 });
 
@@ -213,6 +233,7 @@ const clientKey = (c: Context): string => {
 const app = createApp({
   runner,
   store,
+  cases,
   llmConfigured: model !== null,
   health: () => ({
     factchecks: Boolean(env.GOOGLE_FACTCHECK_API_KEY),
@@ -245,6 +266,7 @@ const shutdown = async () => {
   await Promise.race([whatsapp?.idle(), new Promise((r) => setTimeout(r, 5_000).unref())]);
   corpus.close();
   store.close();
+  cases.close();
   process.exit(0);
 };
 process.once('SIGTERM', () => void shutdown());

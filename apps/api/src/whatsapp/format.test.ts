@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { CheckResponse, ClaimResult, ErrorCode, Evidence } from '@prawdowid/contracts';
+import {
+  ESCALATION_MESSAGE,
+  type CheckResponse,
+  type ClaimResult,
+  type ErrorCode,
+  type Evidence,
+} from '@prawdowid/contracts';
 
-import { formatReply } from './format.ts';
+import { formatReply, resultUrl } from './format.ts';
 import { WHATSAPP_TEXT_LIMIT } from './graph.ts';
 
 const ORIGIN = 'https://prawdowid.example';
@@ -171,4 +177,19 @@ test('bez podstawy werdyktu pokazuje pierwszy materiał', () => {
     ORIGIN,
   );
   assert.ok(text.includes('https://www.gov.pl/web/obrona-narodowa/x'));
+});
+
+test('sprawa oznaczona do weryfikacji: ten sam komunikat co w WWW, bez „przekazano”', () => {
+  const plain = formatReply(ok(), ORIGIN);
+  assert.ok(!plain.includes('moderatora'));
+  for (const reason of ['repeat_no_evidence', 'high_risk', 'injection'] as const) {
+    const text = formatReply(ok(), ORIGIN, {
+      caseId: 'k1',
+      reason,
+      state: 'review_recommended',
+    });
+    assert.ok(text.includes(ESCALATION_MESSAGE[reason]));
+    assert.ok(!/przekaz/i.test(text), 'nie twierdzimy, że sprawę przekazano');
+    assert.ok(text.trimEnd().endsWith(resultUrl(ORIGIN, 'abc')), 'link na końcu');
+  }
 });

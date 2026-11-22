@@ -6,7 +6,13 @@ import type { CheckJob, CheckRequest, CheckResponse } from '@prawdowid/contracts
 
 import { createApp, type AppDeps } from '../app.ts';
 import type { GraphResult } from './graph.ts';
-import { MESSAGES, WhatsAppChannel, verifySignature, type WhatsAppChannelDeps } from './webhook.ts';
+import {
+  MESSAGES,
+  WhatsAppChannel,
+  metaWebhookRoutes,
+  verifySignature,
+  type WhatsAppChannelDeps,
+} from './webhook.ts';
 
 const SECRET = 'app-secret';
 const PHONE = '48500100200';
@@ -26,15 +32,14 @@ function setup(
   const deleted: string[] = [];
   const logs: Array<{ event: string; data: Record<string, unknown> }> = [];
   let n = 0;
+  const log: WhatsAppChannelDeps['log'] = (event, data = {}) => logs.push({ event, data });
   const channel = new WhatsAppChannel({
-    appSecret: SECRET,
-    verifyToken: 'verify-me',
     webOrigin: 'https://prawdowid.example/',
     llmConfigured: true,
     ratePerMinute: 100,
     typingRefreshMs: 0,
-    log: (event, data = {}) => logs.push({ event, data }),
-    graph: {
+    log,
+    transport: {
       sendText: async (to, body): Promise<GraphResult<void>> => {
         sent.push({ to, body });
         return over.sendFails ? { ok: false, error: 'http_500' } : { ok: true, value: undefined };
@@ -76,7 +81,7 @@ function setup(
     health: () => ({ factchecks: false, corpusDocuments: 0 }),
     store: { get: () => undefined },
     runner: { stats: { queued: 0, running: 0 }, enqueue: () => null, delete: () => false },
-    whatsapp: channel,
+    whatsapp: metaWebhookRoutes(channel, { appSecret: SECRET, verifyToken: 'verify-me', log }),
   };
   return { channel, app: createApp(deps), sent, typing, enqueued, deleted, logs };
 }
@@ -214,7 +219,7 @@ test('zdjęcie z podpisem → enqueue({ image, text })', async () => {
 
 test('awaria pobrania zdjęcia → komunikat techniczny, bez zgłoszenia i bez werdyktu', async () => {
   const ctx = setup({
-    graph: {
+    transport: {
       sendText: async (to, body) => {
         ctx.sent.push({ to, body });
         return { ok: true, value: undefined };

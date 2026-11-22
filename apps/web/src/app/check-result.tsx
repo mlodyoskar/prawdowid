@@ -25,7 +25,7 @@ import {
   SummaryBanner,
 } from '@/ui';
 
-import { EvidenceSource } from './evidence-source.tsx';
+import { EvidenceSource, RelatedMaterial } from './evidence-source.tsx';
 
 const CLAIM_FORMS = ['twierdzenie', 'twierdzenia', 'twierdzeń'] as const;
 const SOURCE_FORMS = ['źródło', 'źródła', 'źródeł'] as const;
@@ -55,7 +55,15 @@ const ERROR_TITLE: Record<ErrorCode, string> = {
   sources_unavailable: 'Źródła są chwilowo niedostępne',
 };
 
-function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evidence[] }) {
+function ClaimEvidence({
+  claim,
+  evidence,
+  related,
+}: {
+  claim: ClaimResult;
+  evidence: Evidence[];
+  related: Evidence[];
+}) {
   const [first, ...rest] = evidence;
   const insufficient = claim.verdict === 'brak wystarczających dowodów';
   const unknowns = claim.unknowns ?? [];
@@ -70,7 +78,7 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
         </Notice>
       ) : null}
       {first ? <EvidenceSource evidence={first} use={useOf(first)} /> : null}
-      {rest.length > 0 || hasLimitations ? (
+      {rest.length > 0 || hasLimitations || related.length > 0 ? (
         <Accordion type="multiple" defaultValue={insufficient ? ['limitations'] : []}>
           {rest.length > 0 ? (
             <AccordionItem value="sources">
@@ -79,6 +87,21 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
                 {rest.map((e, i) => (
                   <EvidenceSource key={`${i}-${e.id}`} evidence={e} use={useOf(e)} />
                 ))}
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
+          {related.length > 0 ? (
+            <AccordionItem value="related">
+              <AccordionTrigger>Inne materiały na ten temat ({related.length})</AccordionTrigger>
+              <AccordionContent className="flex flex-col gap-3">
+                <p className="m-0 text-body text-ink-muted">
+                  Dotyczą podobnego tematu, ale innej sprawy. Nie są podstawą wyniku.
+                </p>
+                <ul className="m-0 flex list-none flex-col gap-3 p-0">
+                  {related.map((e, i) => (
+                    <RelatedMaterial key={`${i}-${e.id}`} evidence={e} />
+                  ))}
+                </ul>
               </AccordionContent>
             </AccordionItem>
           ) : null}
@@ -102,7 +125,9 @@ function ClaimEvidence({ claim, evidence }: { claim: ClaimResult; evidence: Evid
       <p className="m-0 text-caption text-ink-muted">
         {evidence.length > 0
           ? `Na podstawie: ${count(evidence.length, SOURCE_FORMS)}`
-          : 'Nie znaleźliśmy źródeł na ten temat.'}
+          : related.length > 0
+            ? 'Nie znaleźliśmy źródła, które dotyczy tej sprawy.'
+            : 'Nie znaleźliśmy źródeł na ten temat.'}
         {insufficient ? ' Nie udostępniaj tej informacji dalej jako pewnej.' : null}
       </p>
     </>
@@ -149,6 +174,7 @@ function OkView({ result, escalation }: { result: OkResult; escalation?: CaseEsc
             <ClaimEvidence
               claim={claim}
               evidence={claim.evidenceIds.flatMap((id) => byId.get(id) ?? [])}
+              related={(claim.relatedIds ?? []).flatMap((id) => byId.get(id) ?? [])}
             />
           </ClaimCard>
         </div>

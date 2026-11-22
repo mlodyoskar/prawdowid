@@ -52,11 +52,28 @@ const LICENCE_CERT =
   '© NASK, wszystkie prawa zastrzeżone (stopka moje.cert.pl). Brak licencji na ponowne wykorzystanie.';
 const LICENCE_RSO =
   'Brak licencji. Dane XML opisane jako dostępne publicznie (komunikaty.tvp.pl/Info/Integration).';
+// Sprawdzone 2026-11-22 przy imporcie snapshotu v7.
+const LICENCE_STRAZ_GRANICZNA =
+  'Brak nazwanej licencji. Strona „Prawa autorskie” strazgraniczna.pl: kopiowanie treści pod warunkiem powołania się na źródło.';
+const LICENCE_IMGW =
+  'Brak nazwanej licencji. Regulamin danepubliczne.imgw.pl: korzystanie nieodpłatne, obowiązek podania źródła „Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy” i informacji o przetworzeniu danych; użycie w działalności gospodarczej wymaga umowy.';
+const LICENCE_ABW =
+  'Brak licencji i noty prawnej w stopce abw.gov.pl. Treść urzędowa, cytujemy z podaniem źródła.';
+const LICENCE_PZH =
+  '© NIZP PZH-PIB (stopka szczepienia.pzh.gov.pl). Brak licencji na ponowne wykorzystanie; cytujemy fragmenty z podaniem źródła.';
+const LICENCE_ODYSEUSZ =
+  'Brak licencji w serwisie odyseusz.gov.pl (aplikacja JS, stopka bez noty prawnej). Komunikaty MSZ, cytujemy z podaniem źródła.';
+const LICENCE_GIOS =
+  'Nie sprawdzono osobno dla powietrze.gios.gov.pl. Treść urzędowa, cytujemy z podaniem źródła.';
+const NOTE_V7 =
+  'Dodane przy imporcie snapshotu v7: dokumenty z tego serwisu są w korpusie. Do potwierdzenia przez autora scrapera.';
 const IMPERVA_BLOCKED = 'Imperva/Incapsula zwraca stronę z wyzwaniem JS zamiast treści.';
 
 export const SOURCES = [
   {
     name: 'Odyseusz',
+    corpusId: 'odyseusz-profile-krajow',
+    licence: LICENCE_ODYSEUSZ,
     url: 'https://odyseusz.gov.pl/',
     kind: 'news',
     strategy: 'json-api',
@@ -442,6 +459,127 @@ export const SOURCES = [
     url: 'https://www.gov.pl/web/premier',
     kind: 'reference',
     strategy: 'govpl-page',
+  },
+  {
+    name: 'MSZ – aktualności',
+    corpusId: 'govpl-dyplomacja',
+    licence: LICENCE_GOVPL,
+    url: 'https://www.gov.pl/web/dyplomacja',
+    kind: 'news',
+    strategy: 'govpl-list',
+    notes: NOTE_V7,
+  },
+  {
+    name: 'Minister Koordynator Służb Specjalnych',
+    corpusId: 'govpl-sluzby-specjalne',
+    licence: LICENCE_GOVPL,
+    url: 'https://www.gov.pl/web/sluzby-specjalne',
+    kind: 'news',
+    strategy: 'govpl-list',
+    notes: NOTE_V7,
+  },
+  {
+    name: 'Prokuratura Krajowa',
+    corpusId: 'govpl-prokuratura-krajowa',
+    licence: LICENCE_GOVPL,
+    url: 'https://www.gov.pl/web/prokuratura-krajowa',
+    kind: 'news',
+    strategy: 'govpl-list',
+    notes: NOTE_V7,
+  },
+  {
+    name: 'Ministerstwo Zdrowia',
+    corpusId: 'govpl-zdrowie',
+    licence: LICENCE_GOVPL,
+    url: 'https://www.gov.pl/web/zdrowie',
+    kind: 'news',
+    strategy: 'govpl-list',
+    notes: NOTE_V7,
+  },
+  {
+    name: 'Urząd do Spraw Cudzoziemców',
+    corpusId: 'govpl-udsc',
+    licence: LICENCE_GOVPL,
+    url: 'https://www.gov.pl/web/udsc',
+    kind: 'news',
+    strategy: 'govpl-list',
+    notes: NOTE_V7,
+  },
+  {
+    name: 'Straż Graniczna – aktualności',
+    corpusId: 'straz-graniczna',
+    licence: LICENCE_STRAZ_GRANICZNA,
+    url: 'https://www.strazgraniczna.pl/pl/aktualnosci/',
+    kind: 'news',
+    strategy: 'html',
+    notes: NOTE_V7,
+  },
+  {
+    name: 'Agencja Bezpieczeństwa Wewnętrznego – aktualności',
+    corpusId: 'abw',
+    licence: LICENCE_ABW,
+    url: 'https://www.abw.gov.pl/pl/aktualnosci',
+    kind: 'news',
+    strategy: 'html',
+    notes: NOTE_V7,
+  },
+  {
+    name: 'Szczepienia.Info (NIZP PZH-PIB)',
+    corpusId: 'pzh-szczepienia',
+    licence: LICENCE_PZH,
+    url: 'https://szczepienia.pzh.gov.pl/',
+    kind: 'reference',
+    strategy: 'html',
+    notes: `${NOTE_V7} Część stron ma datę pierwotnej publikacji, a treść opisuje bieżący sezon.`,
+  },
+  {
+    name: 'IMGW-PIB – ostrzeżenia meteorologiczne i hydrologiczne',
+    corpusId: 'imgw-ostrzezenia',
+    licence: LICENCE_IMGW,
+    url: 'https://danepubliczne.imgw.pl/',
+    kind: 'news',
+    strategy: 'json-api',
+    endpoints: [
+      'https://danepubliczne.imgw.pl/api/data/warningsmeteo',
+      'https://danepubliczne.imgw.pl/api/data/warningshydro',
+    ],
+    notes: `${NOTE_V7} Migawka ostrzeżeń z chwili pobrania; bieżący stan dają wpisy IMGW typu live.`,
+  },
+  {
+    name: 'GIOŚ – ostrzeżenia o jakości powietrza',
+    corpusId: 'gios',
+    licence: LICENCE_GIOS,
+    url: 'https://powietrze.gios.gov.pl/pjp/warnings',
+    kind: 'news',
+    strategy: 'html',
+    notes: `${NOTE_V7} Migawka tabeli ostrzeżeń z chwili pobrania.`,
+  },
+  {
+    name: 'Policja – KWP Kraków, aktualności',
+    corpusId: 'policja-malopolska',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://malopolska.policja.gov.pl/krk/aktualnosci',
+    kind: 'news',
+    strategy: 'html',
+    notes: `${NOTE_V7} Ten sam serwis co malopolska-policja-gov-pl; scraper v7 nadaje inne id.`,
+  },
+  {
+    name: 'Policja – KSP',
+    corpusId: 'policja-ksp',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://ksp.policja.gov.pl/',
+    kind: 'news',
+    strategy: 'html',
+    notes: NOTE_V7,
+  },
+  {
+    name: 'Policja – KRP Warszawa IV (Wola)',
+    corpusId: 'wola-policja-gov-pl',
+    licence: LICENCE_POLICJA_UNIT,
+    url: 'https://wola.policja.gov.pl/',
+    kind: 'news',
+    strategy: 'html',
+    notes: NOTE_V7,
   },
 ] as const satisfies readonly Source[];
 

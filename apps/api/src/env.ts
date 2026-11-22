@@ -104,6 +104,12 @@ const Env = z.object({
   WHATSAPP_GRAPH_VERSION: z.preprocess(emptyToUndefined, z.string().default('v23.0')),
   /** Limit nowych wiadomości na jeden numer na minutę. */
   WHATSAPP_RATE_LIMIT_PER_MINUTE: int(5),
+  /**
+   * Symulator kanału WhatsApp w WWW (`/whatsapp`, trasy `/api/demo/whatsapp`): ta sama logika
+   * kanału z transportem w pamięci. Nie wymaga zmiennych WHATSAPP_*. Limit per sesja jak
+   * WHATSAPP_RATE_LIMIT_PER_MINUTE, per IP jak RATE_LIMIT_PER_MINUTE.
+   */
+  DEMO_CHANNEL: boolFlag(true),
 });
 
 export type Env = z.infer<typeof Env>;

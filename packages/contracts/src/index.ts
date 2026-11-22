@@ -102,6 +102,11 @@ export type ClaimResultCore = z.infer<typeof ClaimResultCore>;
 export const ClaimResult = ClaimResultCore.extend({
   /** Rola i cytat dla każdego dowodu z `evidenceIds`. */
   evidenceUse: z.array(EvidenceUse).optional(),
+  /**
+   * Inne materiały na ten sam temat, ale o innej sprawie (dowody z `evidence`). Nie są cytatami
+   * ani podstawą werdyktu: interfejs pokazuje je osobno, bez fragmentu i bez roli.
+   */
+  relatedIds: z.array(z.string()).optional(),
   /** Jawne przesłanki, z których kod wyliczył `confidence`. */
   confidenceReasons: z.array(z.string()).optional(),
   /** Czego nie udało się ustalić. */

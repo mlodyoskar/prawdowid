@@ -641,9 +641,9 @@ function compose(
       hasDirect: guarded.hasDirect,
       now,
     });
-    for (const use of guarded.evidenceUse) {
-      const e = registry.byId.get(use.id);
-      if (e) cited.set(use.id, e);
+    for (const id of [...guarded.evidenceUse.map((u) => u.id), ...guarded.relatedIds]) {
+      const e = registry.byId.get(id);
+      if (e) cited.set(id, e);
     }
     claims.push({
       claim: state.text,
@@ -668,6 +668,7 @@ function compose(
         .filter(Boolean)
         .join(' '),
       evidenceUse: guarded.evidenceUse,
+      ...(guarded.relatedIds.length > 0 ? { relatedIds: guarded.relatedIds } : {}),
       confidenceReasons: strength.reasons,
       unknowns: judgement.unknowns.map((u) => u.trim()).filter(Boolean),
       ...(guarded.discrepancy ? { discrepancy: true } : {}),

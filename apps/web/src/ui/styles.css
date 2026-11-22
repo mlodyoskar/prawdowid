@@ -43,6 +43,11 @@
   --color-notice-bg: var(--notice-bg);
   --color-caution: var(--caution);
   --color-caution-bg: var(--caution-bg);
+  --color-chat-bar: var(--chat-bar);
+  --color-on-chat-bar: var(--on-chat-bar);
+  --color-chat-bg: var(--chat-bg);
+  --color-chat-in: var(--chat-in);
+  --color-chat-out: var(--chat-out);
 
   /* shadcn/ui aliases */
   --color-background: var(--surface);

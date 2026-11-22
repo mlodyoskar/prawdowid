@@ -8,6 +8,11 @@ export type GuardedClaim = {
   /** true, gdy kod zmienił werdykt zaproponowany przez sędziego. */
   downgraded: boolean;
   evidenceUse: EvidenceUse[];
+  /**
+   * Materiały z tego samego tematu, ale o innej sprawie. Nie są cytatami ani dowodem:
+   * pokazujemy je osobno, z samym tytułem i linkiem.
+   */
+  relatedIds: string[];
   /** Dowody, na których opiera się werdykt: z nich liczona jest siła podstawy. */
   basis: Evidence[];
   discrepancy: boolean;
@@ -20,10 +25,10 @@ export type GuardedClaim = {
   notes: string[];
 };
 
-type Kept = EvidenceUse & { evidence: Evidence; direct: boolean };
+type Kept = EvidenceUse & { evidence: Evidence };
 
 /** Materiały z tego samego tematu, ale o innej sprawie: pokazujemy najwyżej tyle na twierdzenie. */
-const MAX_RELATED_CONTEXT = 2;
+const MAX_RELATED = 2;
 
 /**
  * Reguły, których model nie może obejść (opis: docs/agent.md).
@@ -40,6 +45,7 @@ export function applyGuardrails(
   const flagged: string[] = [];
   const quarantined: string[] = [];
   const kept = new Map<string, Kept>();
+  const related = new Map<string, Evidence>();
 
   for (const item of judgement.items) {
     const evidence = available.get(item.id);
@@ -47,7 +53,7 @@ export function applyGuardrails(
       notes.push(`Pominięto odwołanie do nieistniejącego dowodu: ${item.id}.`);
       continue;
     }
-    if (kept.has(item.id)) continue;
+    if (kept.has(item.id) || related.has(item.id)) continue;
     if (item.addressesModel) flagged.push(item.id);
     if (item.relation === 'unrelated') continue;
 
@@ -60,6 +66,13 @@ export function applyGuardrails(
       continue;
     }
 
+    // Inna sprawa z tego samego tematu: nie jest cytatem przy twierdzeniu ani dowodem.
+    // Trafia do osobnej listy „inne materiały na ten temat”, bez fragmentu i bez roli.
+    if (item.relation === 'related') {
+      if (related.size < MAX_RELATED) related.set(item.id, evidence);
+      continue;
+    }
+
     // Bez potwierdzonego cytatu materiał nie trafia do wyniku, także jako kontekst.
     if (!isVerifiedQuote(item.quote, evidence)) {
       if (item.stance !== 'context') {
@@ -67,23 +80,21 @@ export function applyGuardrails(
       }
       continue;
     }
-    const direct = item.relation === 'direct';
-    if (!direct && [...kept.values()].filter((k) => !k.direct).length >= MAX_RELATED_CONTEXT) {
-      continue;
-    }
     kept.set(item.id, {
       id: item.id,
-      // Materiał z tego samego tematu, ale o innej sprawie, może tylko uzupełniać kontekst.
-      stance: item.relation === 'direct' ? item.stance : 'context',
+      stance: item.stance,
       // «» to znaczniki trafień z wyszukiwarki, nie część materiału.
       quote: item.quote.replace(/[«»]/g, '').trim(),
       evidence,
-      direct,
     });
   }
 
-  const items = trimContext([...kept.values()]);
-  const directItems = items.filter((i) => i.direct);
+  const directItems = trimContext([...kept.values()]);
+  // Dokument, który dotyczy sprawy wprost, nie powtarza się na liście innych materiałów.
+  const citedUrls = new Set(directItems.map((i) => i.evidence.url));
+  const relatedIds = [...related.values()]
+    .filter((e, i, all) => !citedUrls.has(e.url) && all.findIndex((x) => x.url === e.url) === i)
+    .map((e) => e.id);
   const supports = directItems.filter((i) => i.stance === 'supports');
   const refutes = directItems.filter((i) => i.stance === 'refutes');
 
@@ -112,9 +123,10 @@ export function applyGuardrails(
     downgraded,
     // Najpierw materiały, które wspierają albo obalają twierdzenie, potem kontekst: pierwsze źródło
     // w WWW i w skróconej odpowiedzi WhatsApp to zawsze podstawa werdyktu, nie przypadkowy kontekst.
-    evidenceUse: items
+    evidenceUse: directItems
       .toSorted((a, b) => Number(a.stance === 'context') - Number(b.stance === 'context'))
       .map(({ id, stance, quote }) => ({ id, stance, quote })),
+    relatedIds,
     basis: basisFor[verdict].map((i) => i.evidence),
     discrepancy: supports.length > 0 && refutes.length > 0,
     hasDirect: directItems.length > 0,

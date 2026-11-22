@@ -24,8 +24,13 @@ export type AppDeps = {
   clientKey: (c: Context) => string;
   rateLimit: { postPerMinute: number; getPerMinute: number };
   onRateLimited?: (event: { route: string; client: string }) => void;
-  /** Kanał WhatsApp (opcjonalny): trasy webhooka pod `/webhooks/whatsapp`. */
-  whatsapp?: { routes(): Hono } | undefined;
+  /** Kanał WhatsApp (opcjonalny): trasy webhooka Meta pod `/webhooks/whatsapp`. */
+  whatsapp?: Hono | undefined;
+  /**
+   * Symulator kanału WhatsApp w WWW (opcjonalny): trasy pod `/api/demo/whatsapp`, ten sam
+   * `WhatsAppChannel` co webhook. Limit per IP nakłada app, limit per sesja sam kanał.
+   */
+  whatsappDemo?: Hono | undefined;
   /** Wyłącza logger w testach. */
   quiet?: boolean;
 };
@@ -85,13 +90,29 @@ export function createApp(deps: AppDeps) {
       llm: deps.llmConfigured,
       sources: deps.health(),
       queue: deps.runner.stats,
-      channels: { web: true, whatsapp: Boolean(deps.whatsapp) },
+      channels: {
+        web: true,
+        whatsapp: Boolean(deps.whatsapp),
+        whatsappDemo: Boolean(deps.whatsappDemo),
+      },
     }),
   );
 
   // Webhook od Meta: bez CORS i bez limitu per IP (wszystkie wiadomości przychodzą z serwerów Meta);
   // kanał weryfikuje podpis i limituje per nadawca.
-  if (deps.whatsapp) app.route('/webhooks/whatsapp', deps.whatsapp.routes());
+  if (deps.whatsapp) app.route('/webhooks/whatsapp', deps.whatsapp);
+
+  if (deps.whatsappDemo) {
+    // Osobne liczniki: rozmowa w symulatorze nie zjada limitu formularza i odwrotnie.
+    const demoPost = new FixedWindowLimiter({ limit: deps.rateLimit.postPerMinute });
+    const demoGet = new FixedWindowLimiter({ limit: deps.rateLimit.getPerMinute });
+    const limitGet = rateLimiter(demoGet, 'GET /api/demo/whatsapp', deps);
+    const limitWrite = rateLimiter(demoPost, 'POST/DELETE /api/demo/whatsapp', deps);
+    app.use('/api/demo/whatsapp/*', (c, next) =>
+      c.req.method === 'GET' ? limitGet(c, next) : limitWrite(c, next),
+    );
+    app.route('/api/demo/whatsapp', deps.whatsappDemo);
+  }
 
   app.post(
     '/api/checks',

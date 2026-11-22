@@ -17,12 +17,12 @@ export class ApiError extends Error {
   }
 }
 
-function readRetryAfter(res: Response): number | undefined {
+export function readRetryAfter(res: Response): number | undefined {
   const sec = Number(res.headers.get('Retry-After'));
   return Number.isFinite(sec) && sec > 0 ? sec * 1000 : undefined;
 }
 
-async function send(path: string, init: RequestInit): Promise<Response> {
+export async function send(path: string, init: RequestInit): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, init);

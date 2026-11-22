@@ -159,10 +159,10 @@ test('pokazuje każdą publikację-podstawę werdyktu jak WWW, kontekst zostawia
   assert.ok(text.includes('https://www.gov.pl/web/obrona-narodowa/x'));
   assert.ok(text.includes('https://www.gov.pl/drugi'));
   assert.ok(!text.includes('https://www.gov.pl/kontekst'));
-  assert.ok(text.includes('Pozostałe źródła (1) w pełnym wyniku.'));
+  assert.ok(text.includes('Pozostałe materiały (1) w pełnym wyniku.'));
 });
 
-test('bez podstawy werdyktu pokazuje pierwszy materiał', () => {
+test('bez podstawy werdyktu nie pokazuje kontekstu jako źródła, tylko mówi, że nic nie rozstrzyga', () => {
   const text = formatReply(
     ok({
       claims: [
@@ -171,12 +171,17 @@ test('bez podstawy werdyktu pokazuje pierwszy materiał', () => {
           evidenceUse: [
             { id: 'e1', stance: 'context', quote: 'MON nie planuje przywrócenia poboru.' },
           ],
+          relatedIds: ['r1'],
         }),
       ],
+      evidence: [evidence(), evidence({ id: 'r1', url: 'https://www.gov.pl/inna-sprawa' })],
     }),
     ORIGIN,
   );
-  assert.ok(text.includes('https://www.gov.pl/web/obrona-narodowa/x'));
+  assert.ok(!text.includes('https://www.gov.pl/web/obrona-narodowa/x'));
+  assert.ok(!text.includes('https://www.gov.pl/inna-sprawa'));
+  assert.ok(text.includes('Żadne ze znalezionych źródeł tego nie rozstrzyga.'));
+  assert.ok(text.includes('Pozostałe materiały (2) w pełnym wyniku.'));
 });
 
 test('sprawa oznaczona do weryfikacji: ten sam komunikat co w WWW, bez „przekazano”', () => {

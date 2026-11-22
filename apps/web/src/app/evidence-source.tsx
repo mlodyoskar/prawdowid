@@ -23,6 +23,27 @@ function typeLabel(e: Evidence): string {
 }
 
 /**
+ * Material on the same topic but about a different matter: title, publisher, date and link only.
+ * No quote and no role, because it is not evidence for the claim.
+ */
+export function RelatedMaterial({ evidence: e }: { evidence: Evidence }) {
+  const web = isWebUrl(e.url);
+  const meta = [e.publisher, formatDate(e.publishedAt)].filter(Boolean).join(' · ');
+  return (
+    <li className="flex flex-col gap-0.5">
+      {web ? (
+        <a href={e.url} target="_blank" rel="noreferrer" className="text-body font-bold">
+          {e.title}
+        </a>
+      ) : (
+        <span className="text-body font-bold">{e.title}</span>
+      )}
+      {meta ? <span className="text-caption text-ink-muted">{meta}</span> : null}
+    </li>
+  );
+}
+
+/**
  * Maps an `Evidence` record from the API onto the design system's SourceCard.
  * `use` comes from plan mode: the source's role for this claim and the quote the code verified.
  */

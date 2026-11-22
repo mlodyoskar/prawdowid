@@ -31,7 +31,15 @@ for (const [name, group] of groups) {
     ['held-out', group.filter((r) => r.heldOut)],
   ]) {
     if (!selected.length) continue;
-    const m = { quotes: [], faithful: [], justified: [], unsupported: [], settling: [] };
+    const m = {
+      quotes: [],
+      decisive: [],
+      context: [],
+      faithful: [],
+      justified: [],
+      unsupported: [],
+      settling: [],
+    };
     for (const { row, claim, key } of judgeItems(selected)) {
       const j = byKey.get(key);
       if (!j)
@@ -39,6 +47,12 @@ for (const [name, group] of groups) {
           'Missing judgement for ' + row.id + ' round ' + row.round + ' — run /judge-evals',
         );
       m.quotes.push(...j.quotes);
+      // Rola cytatu z tego, co widział sędzia: potwierdza/obala albo kontekst.
+      for (const [i, ok] of j.quotes.entries()) {
+        const role = j.payload?.citations?.[i]?.role;
+        if (role === 'context') m.context.push(ok);
+        else if (role) m.decisive.push(ok);
+      }
       m.faithful.push(j.claimFaithful);
       m.justified.push(j.verdictJustified);
       if (j.quotes.length) m.unsupported.push(!j.unsupportedFact);
@@ -65,6 +79,8 @@ for (const [name, group] of groups) {
     table[split] = {
       ...score(selected),
       'Judge: quote fills its role': ratio(m.quotes),
+      'Judge: supports/refutes quote': ratio(m.decisive),
+      'Judge: context quote': ratio(m.context),
       'Judge: claim faithful to query': ratio(m.faithful),
       'Judge: verdict justified': ratio(m.justified),
       'Judge: explanation fully supported': ratio(m.unsupported),
